@@ -63,6 +63,19 @@ function MonthlyReport() {
     return new Date(0, month - 1).toLocaleString('en-GB', { month: 'long' });
   };
 
+  const formatTripName = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const startDayShort = start.toLocaleDateString('en-GB', { weekday: 'short' });
+    const endDayShort = end.toLocaleDateString('en-GB', { weekday: 'short' });
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const monthName = start.toLocaleDateString('en-GB', { month: 'long' });
+
+    return `Trip: ${startDayShort} ${startDay} - ${endDayShort} ${endDay} ${monthName}`;
+  };
+
   const handleGeneratePDF = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/reports/monthly/pdf?month=${selectedMonth}&year=${selectedYear}`);
@@ -228,7 +241,7 @@ function MonthlyReport() {
                 {report.trip_expenses.map((tripGroup) => (
                   <Box key={tripGroup.trip.id} sx={{ mb: 2 }}>
                     <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                      Trip {tripGroup.trip.id} ({formatDate(tripGroup.trip.start_date)} - {formatDate(tripGroup.trip.end_date)})
+                      {formatTripName(tripGroup.trip.start_date, tripGroup.trip.end_date)}
                     </Typography>
 
                     <TableContainer component={Paper} variant="outlined" size="small">

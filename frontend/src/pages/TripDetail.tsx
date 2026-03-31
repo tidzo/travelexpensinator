@@ -136,6 +136,19 @@ function TripDetail() {
     return `${dayName} ${isoDate}`;
   };
 
+  const formatTripName = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const startDayShort = start.toLocaleDateString('en-GB', { weekday: 'short' });
+    const endDayShort = end.toLocaleDateString('en-GB', { weekday: 'short' });
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const monthName = start.toLocaleDateString('en-GB', { month: 'long' });
+
+    return `Trip: ${startDayShort} ${startDay} - ${endDayShort} ${endDay} ${monthName}`;
+  };
+
   const handleCreateExpenseFromTrip = () => {
     if (!trip) return;
     setExpenseParentContext({
@@ -163,7 +176,7 @@ function TripDetail() {
           <ArrowBack />
         </IconButton>
         <Typography variant="h4" component="h1">
-          Trip {trip.id}
+          {formatTripName(trip.start_date, trip.end_date)}
         </Typography>
       </Box>
 

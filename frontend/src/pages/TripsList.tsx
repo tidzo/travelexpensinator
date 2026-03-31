@@ -16,6 +16,10 @@ import {
   DialogActions,
   Button,
   TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { Add, Edit, Delete } from '@mui/icons-material';
 import { Trip } from '../types';
@@ -24,9 +28,10 @@ import { useNavigate } from 'react-router-dom';
 
 function TripsList() {
   const navigate = useNavigate();
-  const [allTrips, setAllTrips] = useState<Trip[]>([]);
-  const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [newTrip, setNewTrip] = useState({
@@ -37,9 +42,8 @@ function TripsList() {
 
   const loadTrips = async () => {
     try {
-      const data = await api.get<Trip[]>('/trips');
-      setAllTrips(data);
-      filterTripsForThreeMonths(data);
+      const data = await api.get<Trip[]>(`/trips?month=${filterMonth}&year=${filterYear}`);
+      setTrips(data);
     } catch (error) {
       console.error('Failed to load trips:', error);
     } finally {
@@ -47,38 +51,32 @@ function TripsList() {
     }
   };
 
-  const filterTripsForThreeMonths = (trips: Trip[]) => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    // Get previous, current, and next month dates
-    const prevMonth = new Date(currentYear, currentMonth - 1, 1);
-    const nextMonth = new Date(currentYear, currentMonth + 2, 0); // Last day of next month
-
-    const filtered = trips.filter(trip => {
-      const tripStart = new Date(trip.start_date);
-      return tripStart >= prevMonth && tripStart <= nextMonth;
-    });
-
-    setFilteredTrips(filtered);
-  };
-
   useEffect(() => {
     loadTrips();
-  }, []);
+  }, [filterMonth, filterYear]);
 
   const deleteTrip = async (tripId: number) => {
     if (window.confirm('Are you sure you want to delete this trip?')) {
       try {
         await api.delete(`/trips/${tripId}`);
-        const updatedTrips = allTrips.filter(trip => trip.id !== tripId);
-        setAllTrips(updatedTrips);
-        filterTripsForThreeMonths(updatedTrips);
+        setTrips(trips.filter(trip => trip.id !== tripId));
       } catch (error) {
         console.error('Failed to delete trip:', error);
       }
     }
+  };
+
+  const formatTripName = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const startDayShort = start.toLocaleDateString('en-GB', { weekday: 'short' });
+    const endDayShort = end.toLocaleDateString('en-GB', { weekday: 'short' });
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const monthName = start.toLocaleDateString('en-GB', { month: 'long' });
+
+    return `Trip: ${startDayShort} ${startDay} - ${endDayShort} ${endDay} ${monthName}`;
   };
 
   const formatDateRange = (startDate: string, endDate: string) => {
@@ -106,19 +104,17 @@ function TripsList() {
       if (editingTrip) {
         // Update existing trip
         const updatedTrip = await api.put<Trip>(`/trips/${editingTrip.id}`, newTrip);
-        const updatedTrips = allTrips.map(trip =>
+        setTrips(trips.map(trip =>
           trip.id === editingTrip.id ? updatedTrip : trip
-        );
-        setAllTrips(updatedTrips);
-        filterTripsForThreeMonths(updatedTrips);
+        ));
       } else {
         // Create new trip
         const trip = await api.post<Trip>('/trips', newTrip);
-        const updatedTrips = [...allTrips, trip];
-        setAllTrips(updatedTrips);
-        filterTripsForThreeMonths(updatedTrips);
+        setTrips([...trips, trip]);
       }
       handleCloseDialog();
+      // Refresh the list to ensure we have the latest data
+      loadTrips();
     } catch (error) {
       console.error('Failed to save trip:', error);
     }
@@ -150,7 +146,39 @@ function TripsList() {
         My Trips
       </Typography>
 
-      {filteredTrips.length === 0 ? (
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Month</InputLabel>
+          <Select
+            value={filterMonth}
+            label="Month"
+            onChange={(e) => setFilterMonth(e.target.value as number)}
+          >
+            {Array.from({ length: 12 }, (_, i) => (
+              <MenuItem key={i + 1} value={i + 1}>
+                {new Date(0, i).toLocaleString('en-GB', { month: 'long' })}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Year</InputLabel>
+          <Select
+            value={filterYear}
+            label="Year"
+            onChange={(e) => setFilterYear(e.target.value as number)}
+          >
+            {Array.from({ length: 5 }, (_, i) => (
+              <MenuItem key={i} value={new Date().getFullYear() - 2 + i}>
+                {new Date().getFullYear() - 2 + i}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {trips.length === 0 ? (
         <Card>
           <CardContent>
             <Typography variant="h6" color="text.secondary" textAlign="center">
@@ -163,7 +191,7 @@ function TripsList() {
         </Card>
       ) : (
         <List>
-          {filteredTrips.map((trip) => (
+          {trips.map((trip) => (
             <Card key={trip.id} sx={{ mb: 2 }}>
               <ListItem
                 onClick={() => navigate(`/trips/${trip.id}`)}
@@ -198,7 +226,7 @@ function TripsList() {
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="h6">
-                        Trip {trip.id}
+                        {formatTripName(trip.start_date, trip.end_date)}
                       </Typography>
                       <Chip
                         label={getDuration(trip.start_date, trip.end_date)}

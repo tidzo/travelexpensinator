@@ -47,7 +47,7 @@ class PDFService:
             story.append(Spacer(1, 12))
 
             for trip_group in report_data['trip_expenses']:
-                story.append(self._create_trip_section(trip_group))
+                story.extend(self._create_trip_section(trip_group))
                 story.append(Spacer(1, 12))
 
         if report_data['unlinked_expenses']:
@@ -291,11 +291,17 @@ class PDFService:
 
         return table
 
-    def _create_trip_section(self, trip_group: Dict[str, Any]) -> Table:
+    def _create_trip_section(self, trip_group: Dict[str, Any]) -> List:
         trip = trip_group['trip']
         expenses = trip_group['expenses']
 
-        trip_title = f"Trip {trip.id} ({trip.start_date} to {trip.end_date})"
+        trip_title = self._format_trip_name(trip.start_date, trip.end_date)
+
+        story_elements = []
+
+        # Add trip title
+        story_elements.append(Paragraph(trip_title, self.heading4_style))
+        story_elements.append(Spacer(1, 6))
 
         def format_amount(amount):
             return f"£{amount:.2f}" if amount > 0 else ""
@@ -323,7 +329,8 @@ class PDFService:
             ('GRID', (0, 0), (-1, -1), 1, colors.black)
         ]))
 
-        return table
+        story_elements.append(table)
+        return story_elements
 
     def _create_expense_table(self, expenses: List[ExpenseItem]) -> Table:
         def format_amount(amount):
@@ -361,3 +368,17 @@ class PDFService:
             'September', 'October', 'November', 'December'
         ]
         return months[month - 1]
+
+    def _format_trip_name(self, start_date, end_date) -> str:
+        from datetime import datetime
+
+        start = datetime.strptime(str(start_date), '%Y-%m-%d')
+        end = datetime.strptime(str(end_date), '%Y-%m-%d')
+
+        start_day_short = start.strftime('%a')  # Short day name
+        end_day_short = end.strftime('%a')
+        start_day = start.day
+        end_day = end.day
+        month_name = start.strftime('%B')  # Full month name
+
+        return f"Trip: {start_day_short} {start_day} - {end_day_short} {end_day} {month_name}"
