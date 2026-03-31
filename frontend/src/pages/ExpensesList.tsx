@@ -86,8 +86,11 @@ function ExpensesList() {
       if (editingExpense) {
         // Update existing expense
         const updatedExpense = await api.put<ExpenseItem>(`/expenses/${editingExpense.id}`, {
-          ...newExpense,
-          amount_gbp: parseFloat(newExpense.amount_gbp)
+          category_id: newExpense.category_id,
+          date: newExpense.date,
+          description: newExpense.description,
+          amount_gbp: parseFloat(newExpense.amount_gbp),
+          is_billable: newExpense.is_billable
         });
         setExpenses(expenses.map(expense =>
           expense.id === editingExpense.id ? updatedExpense : expense

@@ -5,7 +5,12 @@
       "Bash(python -m alembic init migrations)",
       "Bash(docker-compose down)",
       "Bash(docker-compose up -d --build)",
-      "Bash(docker-compose logs backend)"
+      "Bash(docker-compose logs backend)",
+      "Bash(docker-compose logs backend --tail=20)",
+      "Bash(docker-compose restart backend)",
+      "Bash(docker-compose logs backend --tail=10)",
+      "Bash(docker-compose logs backend --tail=30)",
+      "Bash(docker-compose logs backend --tail=5)"
     ],
     "deny": [],
     "ask": []

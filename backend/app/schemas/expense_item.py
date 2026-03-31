@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Union
 
 class ExpenseItemBase(BaseModel):
     category_id: int
@@ -26,6 +26,21 @@ class ExpenseItemUpdate(BaseModel):
     amount_gbp: Optional[Decimal] = None
     is_billable: Optional[bool] = None
     is_monthly_expense: Optional[bool] = None
+
+    @field_validator('date', mode='before')
+    @classmethod
+    def parse_date(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            return date.fromisoformat(v)
+        if isinstance(v, date):
+            return v
+        return None
+
+    class Config:
+        # Allow extra fields to be ignored
+        extra = "ignore"
 
 class ExpenseItemResponse(ExpenseItemBase):
     id: int

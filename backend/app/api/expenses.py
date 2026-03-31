@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from pydantic import ValidationError
 from app.core.database import get_db
 from app.models.expense_item import ExpenseItem
+from app.models.expense_category import ExpenseCategory
 from app.schemas.expense_item import ExpenseItemCreate, ExpenseItemUpdate, ExpenseItemResponse
 from app.services.expense_service import ExpenseService
 
@@ -45,12 +48,57 @@ def get_expense(expense_id: int, db: Session = Depends(get_db)):
     return expense
 
 @router.put("/{expense_id}", response_model=ExpenseItemResponse)
-def update_expense(expense_id: int, expense_update: ExpenseItemUpdate, db: Session = Depends(get_db)):
-    service = ExpenseService(db)
+async def update_expense(expense_id: int, request: Request, db: Session = Depends(get_db)):
     try:
-        return service.update_expense(expense_id, expense_update)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        # Get raw request body and parse manually
+        body = await request.body()
+        import json
+        data = json.loads(body)
+        print(f"DEBUG: Raw data: {data}")
+
+        # Create update object manually to avoid Pydantic issues
+        from app.services.expense_service import ExpenseService
+        service = ExpenseService(db)
+
+        # Get the existing expense first
+        existing_expense = db.query(ExpenseItem).filter(ExpenseItem.id == expense_id).first()
+        if not existing_expense:
+            raise HTTPException(status_code=404, detail="Expense not found")
+
+        # Update fields directly on the existing expense
+        if 'category_id' in data:
+            existing_expense.category_id = data['category_id']
+        if 'date' in data:
+            if isinstance(data['date'], str):
+                from datetime import date
+                existing_expense.date = date.fromisoformat(data['date'])
+            else:
+                existing_expense.date = data['date']
+        if 'description' in data:
+            existing_expense.description = data['description']
+        if 'amount_gbp' in data:
+            existing_expense.amount_gbp = data['amount_gbp']
+        if 'is_billable' in data:
+            existing_expense.is_billable = data['is_billable']
+
+        # Recalculate VAT
+        from app.services.vat_calculator import VATCalculator
+        category = db.query(ExpenseCategory).filter(ExpenseCategory.id == existing_expense.category_id).first()
+        if category:
+            ex_vat_amount, vat_amount = VATCalculator.calculate_vat_amounts(
+                existing_expense.amount_gbp, category.vat_status
+            )
+            existing_expense.ex_vat_amount = ex_vat_amount
+            existing_expense.vat_amount = vat_amount
+
+        db.commit()
+        db.refresh(existing_expense)
+        return existing_expense
+
+    except Exception as e:
+        print(f"DEBUG: Exception: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{expense_id}")
 def delete_expense(expense_id: int, db: Session = Depends(get_db)):
