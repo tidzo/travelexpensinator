@@ -8,7 +8,6 @@ class LocationType(str, enum.Enum):
     WORK = "WORK"
     HOTEL = "HOTEL"
     STATION = "STATION"
-    AIRPORT = "AIRPORT"
     OTHER = "OTHER"
 
 class Location(Base):

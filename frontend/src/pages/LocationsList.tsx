@@ -101,7 +101,6 @@ function LocationsList() {
       WORK: 'primary',
       HOTEL: 'secondary',
       STATION: 'warning',
-      AIRPORT: 'info',
       OTHER: 'default'
     };
     return colors[type] || 'default';
@@ -216,7 +215,6 @@ function LocationsList() {
               <MenuItem value="WORK">Work</MenuItem>
               <MenuItem value="HOTEL">Hotel</MenuItem>
               <MenuItem value="STATION">Station</MenuItem>
-              <MenuItem value="AIRPORT">Airport</MenuItem>
               <MenuItem value="OTHER">Other</MenuItem>
             </Select>
           </FormControl>

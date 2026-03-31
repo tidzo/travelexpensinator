@@ -326,13 +326,9 @@ function LegsList({ journeyId, locations }: LegsListProps) {
               label="Mode of Transport"
             >
               <MenuItem value="TRAIN">Train</MenuItem>
-              <MenuItem value="TUBE">Tube/Metro</MenuItem>
+              <MenuItem value="TFL">TFL (Tube/Bus)</MenuItem>
               <MenuItem value="TAXI">Taxi</MenuItem>
-              <MenuItem value="FLIGHT">Flight</MenuItem>
-              <MenuItem value="BUS">Bus</MenuItem>
-              <MenuItem value="WALK">Walk</MenuItem>
-              <MenuItem value="CAR">Car</MenuItem>
-              <MenuItem value="OTHER">Other</MenuItem>
+              <MenuItem value="COACH">Coach</MenuItem>
             </Select>
           </FormControl>
 

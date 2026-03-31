@@ -1,7 +1,7 @@
 export interface Location {
   id: number;
   name: string;
-  type: 'HOME' | 'WORK' | 'HOTEL' | 'STATION' | 'AIRPORT' | 'OTHER';
+  type: 'HOME' | 'WORK' | 'HOTEL' | 'STATION' | 'OTHER';
   notes?: string;
   created_at: string;
 }
@@ -17,7 +17,7 @@ export interface Journey {
 export interface Leg {
   id: number;
   journey_id: number;
-  mode_of_transport: 'TRAIN' | 'TUBE' | 'TAXI' | 'FLIGHT' | 'BUS' | 'WALK' | 'CAR' | 'OTHER';
+  mode_of_transport: 'TRAIN' | 'TFL' | 'TAXI' | 'COACH' ;
   origin_location_id: number;
   destination_location_id: number;
   notes?: string;

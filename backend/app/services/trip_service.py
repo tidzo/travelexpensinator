@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from datetime import date, timedelta
 from decimal import Decimal
 from app.models.trip import Trip
+from app.models.journey import Journey
 from app.models.expense_item import ExpenseItem
 from app.models.expense_category import ExpenseCategory, VATStatus
 from app.schemas.trip import TripCreate, TripUpdate
@@ -14,6 +15,9 @@ class TripService:
         trip = Trip(**trip_data.dict())
         self.db.add(trip)
         self.db.flush()
+
+        # Create automatic journeys
+        self._create_default_journeys(trip)
 
         self._create_overnight_expenses(trip)
 
@@ -35,11 +39,39 @@ class TripService:
         if (trip_data.start_date and trip_data.start_date != old_start) or \
            (trip_data.end_date and trip_data.end_date != old_end):
             self._delete_overnight_expenses(trip)
+            self._delete_default_journeys(trip)
             self._create_overnight_expenses(trip)
+            self._create_default_journeys(trip)
 
         self.db.commit()
         self.db.refresh(trip)
         return trip
+
+    def _create_default_journeys(self, trip: Trip):
+        """Create default Outbound and Inbound journeys for a trip"""
+        # Create Outbound journey on start date
+        outbound_journey = Journey(
+            trip_id=trip.id,
+            date=trip.start_date,
+            description="Outbound"
+        )
+        self.db.add(outbound_journey)
+
+        # Only create Inbound journey if trip is more than one day
+        if trip.end_date != trip.start_date:
+            inbound_journey = Journey(
+                trip_id=trip.id,
+                date=trip.end_date,
+                description="Inbound"
+            )
+            self.db.add(inbound_journey)
+
+    def _delete_default_journeys(self, trip: Trip):
+        """Delete default journeys (Outbound/Inbound) when trip dates change"""
+        self.db.query(Journey).filter(
+            Journey.trip_id == trip.id,
+            Journey.description.in_(["Outbound", "Inbound"])
+        ).delete()
 
     def _create_overnight_expenses(self, trip: Trip):
         incidental_category = self.db.query(ExpenseCategory).filter(
