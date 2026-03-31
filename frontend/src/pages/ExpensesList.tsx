@@ -715,7 +715,7 @@ function ExpensesList() {
                       <Button
                         variant="outlined"
                         size="small"
-                        onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/uploads/${evidence.file_path}`, '_blank')}
+                        onClick={() => window.open(`/uploads/${evidence.file_path}`, '_blank')}
                         sx={{ mr: 1 }}
                       >
                         View
@@ -784,7 +784,7 @@ function ExpensesList() {
                       <Button
                         variant="outlined"
                         size="small"
-                        onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/uploads/${evidence.file_path}`, '_blank')}
+                        onClick={() => window.open(`/uploads/${evidence.file_path}`, '_blank')}
                         sx={{ mr: 1 }}
                       >
                         Preview

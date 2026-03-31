@@ -18,6 +18,7 @@ import {
   MenuItem,
   Chip,
   Divider,
+  Card,
 } from '@mui/material';
 import {
   DirectionsTransit,
@@ -27,21 +28,27 @@ import {
   TripOrigin,
   FlagOutlined,
   Receipt,
+  AttachFile,
+  Link,
+  AttachmentOutlined,
 } from '@mui/icons-material';
-import { Leg, Location, ExpenseItem } from '../types';
+import { Leg, Location, ExpenseItem, EvidenceItem, ExpenseCategory } from '../types';
 import { api } from '../services/api';
 
 interface LegsListProps {
   journeyId: number;
   locations: Location[];
+  categories: ExpenseCategory[];
 }
 
-function LegsList({ journeyId, locations }: LegsListProps) {
+function LegsList({ journeyId, locations, categories }: LegsListProps) {
   const [legs, setLegs] = useState<Leg[]>([]);
   const [legExpenses, setLegExpenses] = useState<Record<number, ExpenseItem>>({});
   const [loading, setLoading] = useState(true);
   const [legDialogOpen, setLegDialogOpen] = useState(false);
   const [editingLeg, setEditingLeg] = useState<Leg | null>(null);
+  const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
+  const [selectedLegEvidence, setSelectedLegEvidence] = useState<EvidenceItem[]>([]);
   const [newLeg, setNewLeg] = useState({
     journey_id: journeyId,
     mode_of_transport: 'TRAIN' as Leg['mode_of_transport'],
@@ -223,6 +230,115 @@ function LegsList({ journeyId, locations }: LegsListProps) {
     }).format(amount);
   };
 
+  const handleFileUpload = async (legId: number) => {
+    // Find the expense for this leg
+    const expense = legExpenses[legId];
+    if (!expense) {
+      alert('No expense found for this leg. Please add a cost first.');
+      return;
+    }
+
+    // Create file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*,.pdf';
+    fileInput.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (file) {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('upload_date', new Date().toISOString().split('T')[0]);
+          formData.append('description', `Evidence for leg ${legId} expense`);
+
+          const evidence = await api.post('/files/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+
+          await api.post('/expense-evidence-links', {
+            expense_item_id: expense.id,
+            evidence_item_id: evidence.id
+          });
+
+          // Refresh data
+          loadData();
+        } catch (error) {
+          console.error('Failed to upload file:', error);
+          alert('Failed to upload file');
+        }
+      }
+    };
+    fileInput.click();
+  };
+
+  const handleLinkExistingEvidence = async (legId: number) => {
+    const expense = legExpenses[legId];
+    if (!expense) {
+      alert('No expense found for this leg. Please add a cost first.');
+      return;
+    }
+
+    try {
+      // Get all available evidence items
+      const allEvidence = await api.get<EvidenceItem[]>('/files');
+      // Get evidence already linked to this expense
+      const linkedEvidence = await api.get<EvidenceItem[]>(`/expenses/${expense.id}/evidence`);
+
+      // Filter out evidence that's already linked to this expense
+      const linkedIds = new Set(linkedEvidence.map(e => e.id));
+      const available = allEvidence.filter(e => !linkedIds.has(e.id));
+
+      if (available.length === 0) {
+        alert('No available evidence items to link to this leg expense.');
+        return;
+      }
+
+      // Simple selection for now - show a list and let user choose
+      const evidenceList = available.map((e, idx) => `${idx + 1}. ${e.original_filename}`).join('\n');
+      const selection = prompt(`Select evidence to link to this leg expense:\n\n${evidenceList}\n\nEnter the number (1-${available.length}):`);
+
+      if (selection) {
+        const index = parseInt(selection) - 1;
+        if (index >= 0 && index < available.length) {
+          await api.post('/expense-evidence-links', {
+            expense_item_id: expense.id,
+            evidence_item_id: available[index].id
+          });
+
+          alert(`Linked evidence "${available[index].original_filename}" to this leg expense.`);
+          loadData(); // Refresh data
+        } else {
+          alert('Invalid selection.');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to link evidence:', error);
+      alert('Failed to link evidence to expense.');
+    }
+  };
+
+  const handleViewEvidence = async (legId: number) => {
+    const expense = legExpenses[legId];
+    if (!expense) {
+      alert('No expense found for this leg.');
+      return;
+    }
+
+    try {
+      // Get evidence items for this leg expense
+      const evidence = await api.get<EvidenceItem[]>(`/expenses/${expense.id}/evidence`);
+      setSelectedLegEvidence(evidence);
+      setEvidenceDialogOpen(true);
+    } catch (error) {
+      console.error('Failed to load evidence:', error);
+      alert('Failed to load evidence items.');
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
 
   if (loading) {
     return <Typography variant="body2">Loading transport legs...</Typography>;
@@ -241,6 +357,22 @@ function LegsList({ journeyId, locations }: LegsListProps) {
               <ListItem
                 secondaryAction={
                   <Box>
+                    <IconButton
+                      onClick={() => handleFileUpload(leg.id)}
+                      size="small"
+                      sx={{ mr: 1 }}
+                      title="Upload new evidence"
+                    >
+                      <AttachFile />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => handleLinkExistingEvidence(leg.id)}
+                      size="small"
+                      sx={{ mr: 1 }}
+                      title="Link existing evidence"
+                    >
+                      <Link />
+                    </IconButton>
                     <IconButton
                       onClick={() => handleEditLeg(leg)}
                       size="small"
@@ -296,6 +428,34 @@ function LegsList({ journeyId, locations }: LegsListProps) {
                         }
                       </Typography>
                     </Box>
+                    {legExpenses[leg.id] && (
+                      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                        <Chip
+                          label={categories.find(c => c.id === legExpenses[leg.id].category_id)?.name || 'Unknown Category'}
+                          size="small"
+                          color="default"
+                          variant="outlined"
+                        />
+                        {legExpenses[leg.id].vat_amount > 0 && (
+                          <Chip
+                            label={`VAT: ${formatCurrency(legExpenses[leg.id].vat_amount)}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                        {legExpenses[leg.id].evidence_count > 0 && (
+                          <Chip
+                            icon={<AttachmentOutlined />}
+                            label={`${legExpenses[leg.id].evidence_count} evidence`}
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                            onClick={() => handleViewEvidence(leg.id)}
+                            sx={{ cursor: 'pointer' }}
+                          />
+                        )}
+                      </Box>
+                    )}
                   </Box>
                 </Box>
               </ListItem>
@@ -394,6 +554,59 @@ function LegsList({ journeyId, locations }: LegsListProps) {
           >
             {editingLeg ? 'Update Leg' : 'Create Leg'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Evidence viewing dialog for transport legs */}
+      <Dialog
+        open={evidenceDialogOpen}
+        onClose={() => setEvidenceDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Transport Leg Evidence</DialogTitle>
+        <DialogContent>
+          {selectedLegEvidence.length === 0 ? (
+            <Typography variant="body1" color="text.secondary">
+              No evidence items found for this transport leg expense.
+            </Typography>
+          ) : (
+            <List>
+              {selectedLegEvidence.map((evidence) => (
+                <Card key={evidence.id} sx={{ mb: 2 }}>
+                  <ListItem>
+                    <ListItemText
+                      primary={evidence.original_filename}
+                      secondary={
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            {evidence.description && `${evidence.description} • `}
+                            Uploaded: {formatDate(evidence.upload_date)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Type: {evidence.file_type}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                    <Box sx={{ ml: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => window.open(`/uploads/${evidence.file_path}`, '_blank')}
+                        sx={{ mr: 1 }}
+                      >
+                        View
+                      </Button>
+                    </Box>
+                  </ListItem>
+                </Card>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEvidenceDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

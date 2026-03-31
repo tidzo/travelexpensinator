@@ -18,6 +18,7 @@ interface ExpenseDialogProps {
   open: boolean;
   onClose: () => void;
   categories: ExpenseCategory[];
+  editingExpense?: ExpenseItem | null;
   initialData?: {
     date: string;
     categoryId?: number;
@@ -32,6 +33,7 @@ function ExpenseDialog({
   open,
   onClose,
   categories,
+  editingExpense,
   initialData,
   onExpenseCreated
 }: ExpenseDialogProps) {
@@ -47,17 +49,34 @@ function ExpenseDialog({
   });
 
   useEffect(() => {
-    if (open && initialData) {
-      setExpense(prev => ({
-        ...prev,
-        category_id: initialData.categoryId || (categories[0]?.id || 1),
-        date: initialData.date,
-        trip_id: initialData.tripId,
-        journey_id: initialData.journeyId,
-        leg_id: initialData.legId
-      }));
+    if (open) {
+      if (editingExpense) {
+        // Editing existing expense
+        setExpense({
+          category_id: editingExpense.category_id,
+          date: editingExpense.date.toString(),
+          description: editingExpense.description,
+          amount_gbp: editingExpense.amount_gbp.toString(),
+          is_billable: editingExpense.is_billable,
+          trip_id: editingExpense.trip_id,
+          journey_id: editingExpense.journey_id,
+          leg_id: editingExpense.leg_id
+        });
+      } else if (initialData) {
+        // Creating new expense
+        setExpense(prev => ({
+          ...prev,
+          category_id: initialData.categoryId || (categories[0]?.id || 1),
+          date: initialData.date,
+          trip_id: initialData.tripId,
+          journey_id: initialData.journeyId,
+          leg_id: initialData.legId,
+          description: '',
+          amount_gbp: ''
+        }));
+      }
     }
-  }, [open, initialData, categories]);
+  }, [open, editingExpense, initialData, categories]);
 
   const handleSubmit = async () => {
     try {
@@ -73,10 +92,17 @@ function ExpenseDialog({
         }
       });
 
-      const createdExpense = await api.post<ExpenseItem>('/expenses', expenseData);
+      let savedExpense: ExpenseItem;
+      if (editingExpense) {
+        // Update existing expense
+        savedExpense = await api.put<ExpenseItem>(`/expenses/${editingExpense.id}`, expenseData);
+      } else {
+        // Create new expense
+        savedExpense = await api.post<ExpenseItem>('/expenses', expenseData);
+      }
 
       if (onExpenseCreated) {
-        onExpenseCreated(createdExpense);
+        onExpenseCreated(savedExpense);
       }
 
       handleClose();
@@ -101,7 +127,7 @@ function ExpenseDialog({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add New Expense</DialogTitle>
+      <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
       <DialogContent>
         <TextField
           autoFocus
@@ -172,7 +198,7 @@ function ExpenseDialog({
           variant="contained"
           disabled={!expense.description || !expense.amount_gbp}
         >
-          Create Expense
+          {editingExpense ? 'Update Expense' : 'Create Expense'}
         </Button>
       </DialogActions>
     </Dialog>

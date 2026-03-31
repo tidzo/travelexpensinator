@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(docker-compose exec backend python -c \"\nfrom app.core.database import SessionLocal\nfrom app.models.expense_item import ExpenseItem\nfrom app.models.expense_category import ExpenseCategory\n\ndb = SessionLocal()\n\n# Get a sample expense to see its structure\nexpense = db.query(ExpenseItem).first()\nif expense:\n    print(f''Expense ID: {expense.id}'')\n    print(f''Description: {expense.description}'')\n    print(f''Evidence count attribute exists: {hasattr(expense, \"\"evidence_count\"\")}'')\n    \n    # Check if it has evidence_links\n    print(f''Evidence links count: {len(expense.evidence_links) if expense.evidence_links else 0}'')\n\ndb.close()\n\")"
+      "Bash(curl -I http://localhost:5173/uploads/2026/03/expense_2026_03_10_screenshot_2026-03-31_at_19.40.22.png)"
     ],
     "deny": [],
     "ask": []

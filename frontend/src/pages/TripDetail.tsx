@@ -33,8 +33,11 @@ import {
   Receipt,
   Restaurant,
   Hotel,
+  AttachFile,
+  Link,
+  AttachmentOutlined,
 } from '@mui/icons-material';
-import { Trip, Journey, Leg, Location, ExpenseCategory, ExpenseItem } from '../types';
+import { Trip, Journey, Leg, Location, ExpenseCategory, ExpenseItem, EvidenceItem } from '../types';
 import { api } from '../services/api';
 import LegsList from '../components/LegsList';
 import ExpenseDialog from '../components/ExpenseDialog';
@@ -62,6 +65,10 @@ function TripDetail() {
     date: string;
     categoryId?: number;
   } | null>(null);
+  const [linkEvidenceDialogOpen, setLinkEvidenceDialogOpen] = useState(false);
+  const [linkingExpenseId, setLinkingExpenseId] = useState<number | null>(null);
+  const [availableEvidence, setAvailableEvidence] = useState<EvidenceItem[]>([]);
+  const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
 
   const loadData = async () => {
     try {
@@ -141,6 +148,13 @@ function TripDetail() {
     return `${dayName} ${isoDate}`;
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'GBP'
+    }).format(amount);
+  };
+
   const formatTripName = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -174,6 +188,96 @@ function TripDetail() {
       date: trip.start_date
     });
     setExpenseDialogOpen(true);
+  };
+
+  const handleFileUpload = async (expenseId: number) => {
+    // Create file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*,.pdf';
+    fileInput.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (file) {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('upload_date', new Date().toISOString().split('T')[0]);
+          formData.append('description', `Evidence for expense ${expenseId}`);
+
+          const evidence = await api.post('/files/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+
+          await api.post('/expense-evidence-links', {
+            expense_item_id: expenseId,
+            evidence_item_id: evidence.id
+          });
+
+          loadData(); // Refresh data
+        } catch (error) {
+          console.error('Failed to upload file:', error);
+          alert('Failed to upload file');
+        }
+      }
+    };
+    fileInput.click();
+  };
+
+  const handleLinkExistingEvidence = async (expenseId: number) => {
+    try {
+      // Get all available evidence items
+      const allEvidence = await api.get<EvidenceItem[]>('/files');
+      // Get evidence already linked to this expense
+      const linkedEvidence = await api.get<EvidenceItem[]>(`/expenses/${expenseId}/evidence`);
+
+      // Filter out evidence that's already linked to this expense
+      const linkedIds = new Set(linkedEvidence.map(e => e.id));
+      const available = allEvidence.filter(e => !linkedIds.has(e.id));
+
+      setAvailableEvidence(available);
+      setLinkingExpenseId(expenseId);
+      setLinkEvidenceDialogOpen(true);
+    } catch (error) {
+      console.error('Failed to load evidence:', error);
+      alert('Failed to load evidence items.');
+    }
+  };
+
+  const handleLinkEvidenceToExpense = async (evidenceId: number) => {
+    if (!linkingExpenseId) return;
+
+    try {
+      await api.post('/expense-evidence-links', {
+        expense_item_id: linkingExpenseId,
+        evidence_item_id: evidenceId
+      });
+
+      // Refresh the data to update evidence counts
+      loadData();
+      setLinkEvidenceDialogOpen(false);
+      setLinkingExpenseId(null);
+      setAvailableEvidence([]);
+    } catch (error) {
+      console.error('Failed to link evidence:', error);
+      alert('Failed to link evidence to expense.');
+    }
+  };
+
+  const handleEditExpense = (expense: ExpenseItem) => {
+    setEditingExpense(expense);
+    setExpenseDialogOpen(true);
+  };
+
+  const deleteExpense = async (expenseId: number) => {
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      try {
+        await api.delete(`/expenses/${expenseId}`);
+        loadData(); // Refresh data
+      } catch (error) {
+        console.error('Failed to delete expense:', error);
+        alert('Failed to delete expense');
+      }
+    }
   };
 
 
@@ -287,6 +391,7 @@ function TripDetail() {
                 <LegsList
                   journeyId={journey.id}
                   locations={locations}
+                  categories={categories}
                 />
               </AccordionDetails>
             </Accordion>
@@ -320,7 +425,46 @@ function TripDetail() {
             <CardContent>
               <List>
                 {tripOnlyExpenses.map((expense) => (
-                  <ListItem key={expense.id}>
+                  <ListItem
+                    key={expense.id}
+                    secondaryAction={
+                      <Box>
+                        <IconButton
+                          edge="end"
+                          aria-label="attach"
+                          sx={{ mr: 1 }}
+                          onClick={() => handleFileUpload(expense.id)}
+                          title="Upload new evidence"
+                        >
+                          <AttachFile />
+                        </IconButton>
+                        <IconButton
+                          edge="end"
+                          aria-label="link-evidence"
+                          sx={{ mr: 1 }}
+                          onClick={() => handleLinkExistingEvidence(expense.id)}
+                          title="Link existing evidence"
+                        >
+                          <Link />
+                        </IconButton>
+                        <IconButton
+                          edge="end"
+                          aria-label="edit"
+                          onClick={() => handleEditExpense(expense)}
+                          sx={{ mr: 1 }}
+                        >
+                          <Edit />
+                        </IconButton>
+                        <IconButton
+                          edge="end"
+                          aria-label="delete"
+                          onClick={() => deleteExpense(expense.id)}
+                        >
+                          <Delete />
+                        </IconButton>
+                      </Box>
+                    }
+                  >
                     <ListItemText
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -335,11 +479,32 @@ function TripDetail() {
                           <Typography variant="body2" color="text.secondary">
                             {formatDateWithDay(expense.date.toString())} • £{Number(expense.amount_gbp).toFixed(2)}
                           </Typography>
-                          {categories.find(c => c.id === expense.category_id)?.name && (
-                            <Typography variant="caption" color="text.secondary">
-                              {categories.find(c => c.id === expense.category_id)?.name}
-                            </Typography>
-                          )}
+                          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                            <Chip
+                              label={categories.find(c => c.id === expense.category_id)?.name || 'Unknown Category'}
+                              size="small"
+                              color="default"
+                              variant="outlined"
+                            />
+                            {Number(expense.vat_amount) > 0 && (
+                              <Chip
+                                label={`VAT: ${formatCurrency(Number(expense.vat_amount))}`}
+                                size="small"
+                                variant="outlined"
+                              />
+                            )}
+                            {expense.evidence_count > 0 && (
+                              <Chip
+                                icon={<AttachmentOutlined />}
+                                label={`${expense.evidence_count} evidence`}
+                                size="small"
+                                color="info"
+                                variant="outlined"
+                                onClick={() => {}} // Will implement evidence viewing
+                                sx={{ cursor: 'pointer' }}
+                              />
+                            )}
+                          </Box>
                         </Box>
                       }
                     />
@@ -404,8 +569,13 @@ function TripDetail() {
 
       <ExpenseDialog
         open={expenseDialogOpen}
-        onClose={() => setExpenseDialogOpen(false)}
+        onClose={() => {
+          setExpenseDialogOpen(false);
+          setEditingExpense(null);
+          setExpenseParentContext(null);
+        }}
         categories={categories}
+        editingExpense={editingExpense}
         initialData={expenseParentContext ? {
           date: expenseParentContext.date,
           categoryId: expenseParentContext.categoryId,
@@ -413,8 +583,58 @@ function TripDetail() {
         } : undefined}
         onExpenseCreated={() => {
           loadData(); // Reload all data to show the new expense
+          setEditingExpense(null);
         }}
       />
+
+      {/* Link evidence dialog */}
+      <Dialog
+        open={linkEvidenceDialogOpen}
+        onClose={() => {
+          setLinkEvidenceDialogOpen(false);
+          setLinkingExpenseId(null);
+          setAvailableEvidence([]);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Link Existing Evidence</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Select evidence to link to this expense:
+          </Typography>
+          {availableEvidence.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+              No available evidence items to link.
+            </Typography>
+          ) : (
+            <List>
+              {availableEvidence.map((evidence) => (
+                <ListItem
+                  key={evidence.id}
+                  button
+                  onClick={() => handleLinkEvidenceToExpense(evidence.id)}
+                  sx={{ border: 1, borderColor: 'divider', borderRadius: 1, mb: 1 }}
+                >
+                  <ListItemText
+                    primary={evidence.original_filename}
+                    secondary={`Uploaded: ${new Date(evidence.upload_date).toLocaleDateString()}`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setLinkEvidenceDialogOpen(false);
+            setLinkingExpenseId(null);
+            setAvailableEvidence([]);
+          }}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
