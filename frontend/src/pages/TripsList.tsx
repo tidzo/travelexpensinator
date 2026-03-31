@@ -26,6 +26,7 @@ function TripsList() {
   const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [newTrip, setNewTrip] = useState({
     start_date: '',
     end_date: '',
@@ -100,15 +101,41 @@ function TripsList() {
 
   const handleCreateTrip = async () => {
     try {
-      const trip = await api.post<Trip>('/trips', newTrip);
-      const updatedTrips = [...allTrips, trip];
-      setAllTrips(updatedTrips);
-      filterTripsForThreeMonths(updatedTrips);
-      setDialogOpen(false);
-      setNewTrip({ start_date: '', end_date: '', notes: '' });
+      if (editingTrip) {
+        // Update existing trip
+        const updatedTrip = await api.put<Trip>(`/trips/${editingTrip.id}`, newTrip);
+        const updatedTrips = allTrips.map(trip =>
+          trip.id === editingTrip.id ? updatedTrip : trip
+        );
+        setAllTrips(updatedTrips);
+        filterTripsForThreeMonths(updatedTrips);
+      } else {
+        // Create new trip
+        const trip = await api.post<Trip>('/trips', newTrip);
+        const updatedTrips = [...allTrips, trip];
+        setAllTrips(updatedTrips);
+        filterTripsForThreeMonths(updatedTrips);
+      }
+      handleCloseDialog();
     } catch (error) {
-      console.error('Failed to create trip:', error);
+      console.error('Failed to save trip:', error);
     }
+  };
+
+  const handleEditTrip = (trip: Trip) => {
+    setEditingTrip(trip);
+    setNewTrip({
+      start_date: trip.start_date,
+      end_date: trip.end_date,
+      notes: trip.notes || ''
+    });
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingTrip(null);
+    setNewTrip({ start_date: '', end_date: '', notes: '' });
   };
 
   if (loading) {
@@ -139,7 +166,12 @@ function TripsList() {
               <ListItem
                 secondaryAction={
                   <Box>
-                    <IconButton edge="end" aria-label="edit" sx={{ mr: 1 }}>
+                    <IconButton
+                      edge="end"
+                      aria-label="edit"
+                      onClick={() => handleEditTrip(trip)}
+                      sx={{ mr: 1 }}
+                    >
                       <Edit />
                     </IconButton>
                     <IconButton
@@ -197,8 +229,8 @@ function TripsList() {
         <Add />
       </Fab>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Trip</DialogTitle>
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingTrip ? 'Edit Trip' : 'Add New Trip'}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -235,13 +267,13 @@ function TripsList() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
           <Button
             onClick={handleCreateTrip}
             variant="contained"
             disabled={!newTrip.start_date || !newTrip.end_date}
           >
-            Create Trip
+            {editingTrip ? 'Update Trip' : 'Create Trip'}
           </Button>
         </DialogActions>
       </Dialog>

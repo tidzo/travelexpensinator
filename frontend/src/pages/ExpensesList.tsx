@@ -31,6 +31,7 @@ function ExpensesList() {
   const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
   const [newExpense, setNewExpense] = useState({
     category_id: 1, // Default to first category
     date: new Date().toISOString().split('T')[0],
@@ -82,22 +83,51 @@ function ExpensesList() {
 
   const handleCreateExpense = async () => {
     try {
-      const expense = await api.post<ExpenseItem>('/expenses', {
-        ...newExpense,
-        amount_gbp: parseFloat(newExpense.amount_gbp)
-      });
-      setExpenses([...expenses, expense]);
-      setDialogOpen(false);
-      setNewExpense({
-        category_id: 1,
-        date: new Date().toISOString().split('T')[0],
-        description: '',
-        amount_gbp: '',
-        is_billable: true
-      });
+      if (editingExpense) {
+        // Update existing expense
+        const updatedExpense = await api.put<ExpenseItem>(`/expenses/${editingExpense.id}`, {
+          ...newExpense,
+          amount_gbp: parseFloat(newExpense.amount_gbp)
+        });
+        setExpenses(expenses.map(expense =>
+          expense.id === editingExpense.id ? updatedExpense : expense
+        ));
+      } else {
+        // Create new expense
+        const expense = await api.post<ExpenseItem>('/expenses', {
+          ...newExpense,
+          amount_gbp: parseFloat(newExpense.amount_gbp)
+        });
+        setExpenses([...expenses, expense]);
+      }
+      handleCloseDialog();
     } catch (error) {
-      console.error('Failed to create expense:', error);
+      console.error('Failed to save expense:', error);
     }
+  };
+
+  const handleEditExpense = (expense: ExpenseItem) => {
+    setEditingExpense(expense);
+    setNewExpense({
+      category_id: expense.category_id,
+      date: expense.date,
+      description: expense.description,
+      amount_gbp: expense.amount_gbp.toString(),
+      is_billable: expense.is_billable
+    });
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingExpense(null);
+    setNewExpense({
+      category_id: 1,
+      date: new Date().toISOString().split('T')[0],
+      description: '',
+      amount_gbp: '',
+      is_billable: true
+    });
   };
 
   if (loading) {
@@ -163,7 +193,12 @@ function ExpensesList() {
                     <IconButton edge="end" aria-label="attach" sx={{ mr: 1 }}>
                       <AttachFile />
                     </IconButton>
-                    <IconButton edge="end" aria-label="edit" sx={{ mr: 1 }}>
+                    <IconButton
+                      edge="end"
+                      aria-label="edit"
+                      onClick={() => handleEditExpense(expense)}
+                      sx={{ mr: 1 }}
+                    >
                       <Edit />
                     </IconButton>
                     <IconButton
@@ -228,8 +263,8 @@ function ExpensesList() {
         <Add />
       </Fab>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Expense</DialogTitle>
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -276,13 +311,13 @@ function ExpensesList() {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
           <Button
             onClick={handleCreateExpense}
             variant="contained"
             disabled={!newExpense.description || !newExpense.amount_gbp}
           >
-            Create Expense
+            {editingExpense ? 'Update Expense' : 'Create Expense'}
           </Button>
         </DialogActions>
       </Dialog>
