@@ -69,6 +69,8 @@ function TripDetail() {
   const [linkingExpenseId, setLinkingExpenseId] = useState<number | null>(null);
   const [availableEvidence, setAvailableEvidence] = useState<EvidenceItem[]>([]);
   const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
+  const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
+  const [selectedExpenseEvidence, setSelectedExpenseEvidence] = useState<EvidenceItem[]>([]);
 
   const loadData = async () => {
     try {
@@ -204,9 +206,7 @@ function TripDetail() {
           formData.append('upload_date', new Date().toISOString().split('T')[0]);
           formData.append('description', `Evidence for expense ${expenseId}`);
 
-          const evidence = await api.post('/files/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          const evidence = await api.uploadFile('/files/upload', formData);
 
           await api.post('/expense-evidence-links', {
             expense_item_id: expenseId,
@@ -278,6 +278,22 @@ function TripDetail() {
         alert('Failed to delete expense');
       }
     }
+  };
+
+  const handleViewEvidence = async (expenseId: number) => {
+    try {
+      // Get evidence items for this expense
+      const evidence = await api.get<EvidenceItem[]>(`/expenses/${expenseId}/evidence`);
+      setSelectedExpenseEvidence(evidence);
+      setEvidenceDialogOpen(true);
+    } catch (error) {
+      console.error('Failed to load evidence:', error);
+      alert('Failed to load evidence items.');
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
   };
 
 
@@ -500,7 +516,7 @@ function TripDetail() {
                                 size="small"
                                 color="info"
                                 variant="outlined"
-                                onClick={() => {}} // Will implement evidence viewing
+                                onClick={() => handleViewEvidence(expense.id)}
                                 sx={{ cursor: 'pointer' }}
                               />
                             )}
@@ -633,6 +649,59 @@ function TripDetail() {
           }}>
             Cancel
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Evidence viewing dialog */}
+      <Dialog
+        open={evidenceDialogOpen}
+        onClose={() => setEvidenceDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Trip Expense Evidence</DialogTitle>
+        <DialogContent>
+          {selectedExpenseEvidence.length === 0 ? (
+            <Typography variant="body1" color="text.secondary">
+              No evidence items found for this expense.
+            </Typography>
+          ) : (
+            <List>
+              {selectedExpenseEvidence.map((evidence) => (
+                <Card key={evidence.id} sx={{ mb: 2 }}>
+                  <ListItem>
+                    <ListItemText
+                      primary={evidence.original_filename}
+                      secondary={
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            {evidence.description && `${evidence.description} • `}
+                            Uploaded: {formatDate(evidence.upload_date)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Type: {evidence.file_type}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                    <Box sx={{ ml: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => window.open(`/uploads/${evidence.file_path}`, '_blank')}
+                        sx={{ mr: 1 }}
+                      >
+                        View
+                      </Button>
+                    </Box>
+                  </ListItem>
+                </Card>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEvidenceDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

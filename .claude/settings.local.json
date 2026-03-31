@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(curl -I http://localhost:5173/uploads/2026/03/expense_2026_03_10_screenshot_2026-03-31_at_19.40.22.png)"
+      "Bash(curl -I http://localhost:5173/uploads/2026/03/expense_2026_03_10_screenshot_2026-03-31_at_19.40.22.png)",
+      "Bash(docker-compose exec backend python -m alembic revision --autogenerate -m \"Update transport mode enum values\")",
+      "Bash(docker-compose exec backend python -c \"\nfrom app.core.database import SessionLocal\nfrom app.models.leg import Leg\n\ndb = SessionLocal()\nlegs = db.query(Leg).all()\nprint(f''Found {len(legs)} existing legs:'')\nfor leg in legs:\n    print(f''  Leg {leg.id}: mode={leg.mode_of_transport}'')\ndb.close()\n\")"
     ],
     "deny": [],
     "ask": []
