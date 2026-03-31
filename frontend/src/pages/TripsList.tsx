@@ -22,7 +22,8 @@ import { Trip } from '../types';
 import { api } from '../services/api';
 
 function TripsList() {
-  const [trips, setTrips] = useState<Trip[]>([]);
+  const [allTrips, setAllTrips] = useState<Trip[]>([]);
+  const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTrip, setNewTrip] = useState({
@@ -34,12 +35,30 @@ function TripsList() {
   const loadTrips = async () => {
     try {
       const data = await api.get<Trip[]>('/trips');
-      setTrips(data);
+      setAllTrips(data);
+      filterTripsForThreeMonths(data);
     } catch (error) {
       console.error('Failed to load trips:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const filterTripsForThreeMonths = (trips: Trip[]) => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Get previous, current, and next month dates
+    const prevMonth = new Date(currentYear, currentMonth - 1, 1);
+    const nextMonth = new Date(currentYear, currentMonth + 2, 0); // Last day of next month
+
+    const filtered = trips.filter(trip => {
+      const tripStart = new Date(trip.start_date);
+      return tripStart >= prevMonth && tripStart <= nextMonth;
+    });
+
+    setFilteredTrips(filtered);
   };
 
   useEffect(() => {
@@ -50,7 +69,9 @@ function TripsList() {
     if (window.confirm('Are you sure you want to delete this trip?')) {
       try {
         await api.delete(`/trips/${tripId}`);
-        setTrips(trips.filter(trip => trip.id !== tripId));
+        const updatedTrips = allTrips.filter(trip => trip.id !== tripId);
+        setAllTrips(updatedTrips);
+        filterTripsForThreeMonths(updatedTrips);
       } catch (error) {
         console.error('Failed to delete trip:', error);
       }
@@ -58,9 +79,16 @@ function TripsList() {
   };
 
   const formatDateRange = (startDate: string, endDate: string) => {
-    const start = new Date(startDate).toLocaleDateString();
-    const end = new Date(endDate).toLocaleDateString();
-    return `${start} - ${end}`;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const formatDateWithDay = (date: Date) => {
+      const dayName = date.toLocaleDateString('en-GB', { weekday: 'long' });
+      const isoDate = date.toISOString().split('T')[0];
+      return `${dayName} ${isoDate}`;
+    };
+
+    return `${formatDateWithDay(start)} - ${formatDateWithDay(end)}`;
   };
 
   const getDuration = (startDate: string, endDate: string) => {
@@ -73,7 +101,9 @@ function TripsList() {
   const handleCreateTrip = async () => {
     try {
       const trip = await api.post<Trip>('/trips', newTrip);
-      setTrips([...trips, trip]);
+      const updatedTrips = [...allTrips, trip];
+      setAllTrips(updatedTrips);
+      filterTripsForThreeMonths(updatedTrips);
       setDialogOpen(false);
       setNewTrip({ start_date: '', end_date: '', notes: '' });
     } catch (error) {
@@ -91,7 +121,7 @@ function TripsList() {
         My Trips
       </Typography>
 
-      {trips.length === 0 ? (
+      {filteredTrips.length === 0 ? (
         <Card>
           <CardContent>
             <Typography variant="h6" color="text.secondary" textAlign="center">
@@ -104,7 +134,7 @@ function TripsList() {
         </Card>
       ) : (
         <List>
-          {trips.map((trip) => (
+          {filteredTrips.map((trip) => (
             <Card key={trip.id} sx={{ mb: 2 }}>
               <ListItem
                 secondaryAction={
