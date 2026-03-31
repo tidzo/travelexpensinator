@@ -20,7 +20,7 @@ class PDFService:
             'CustomTitle',
             parent=self.styles['Heading1'],
             fontSize=16,
-            spaceAfter=30,
+            spaceAfter=20,  # Reduced from 30
         )
         self.heading4_style = ParagraphStyle(
             'CustomHeading4',
@@ -28,6 +28,14 @@ class PDFService:
             fontSize=11,
             spaceBefore=6,
             spaceAfter=6,
+        )
+        # Add compact evidence header style
+        self.evidence_header_style = ParagraphStyle(
+            'EvidenceHeader',
+            parent=self.styles['Heading3'],
+            fontSize=12,
+            spaceBefore=6,
+            spaceAfter=8,
         )
 
     def generate_monthly_report(self, report_data: Dict[str, Any]) -> BytesIO:
@@ -61,12 +69,20 @@ class PDFService:
 
     def generate_evidence_binder(self, expenses: List[ExpenseItem], month: int, year: int) -> BytesIO:
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        # Use smaller margins for the evidence binder
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            leftMargin=0.5*inch,    # Reduced from default ~1 inch
+            rightMargin=0.5*inch,   # Reduced from default ~1 inch
+            topMargin=0.4*inch,     # Reduced from default ~1 inch
+            bottomMargin=0.4*inch   # Reduced from default ~1 inch
+        )
         story = []
 
         title = f"Evidence Binder - {self._get_month_name(month)} {year}"
         story.append(Paragraph(title, self.title_style))
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 6))  # Reduced from 12
 
         # Create a dictionary to group expenses by evidence item
         evidence_groups = {}
@@ -91,14 +107,13 @@ class PDFService:
 
         # Process each evidence item
         for i, evidence_group in enumerate(sorted_evidence):
+            # Always start each evidence item on a new page for clear organization
             if i > 0:
                 story.append(PageBreak())  # Start each evidence item on a new page
 
             evidence = evidence_group['evidence']
 
-            # Evidence header with filename
-            story.append(Paragraph(evidence.original_filename, self.styles['Heading2']))
-            story.append(Spacer(1, 12))
+            # Skip filename header to save space - evidence is identifiable by linked expenses
 
             # Linked expenses table (simple format)
             expense_data = [['Date', 'Description', 'Amount']]
@@ -109,18 +124,20 @@ class PDFService:
                     f"£{expense.amount_gbp:.2f}"
                 ])
 
-            expense_table = Table(expense_data, colWidths=[1.2*inch, 3.8*inch, 1*inch])
+            expense_table = Table(expense_data, colWidths=[1*inch, 5.5*inch, 1*inch])  # Increased middle column due to wider page
             expense_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),  # Reduced from 9
                 ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),  # Thinner grid lines
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),  # Reduced padding
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
             ]))
 
             story.append(expense_table)
-            story.append(Spacer(1, 20))
+            story.append(Spacer(1, 12))  # Reduced from 20
 
             # Include the actual evidence file
             try:
@@ -175,12 +192,15 @@ class PDFService:
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
 
-                # Calculate scaling to fit on page (with margins)
-                max_width = 6.5 * inch  # A4 width minus margins
-                max_height = 8 * inch   # Available height
+                # Calculate scaling to fit on page (with smaller margins)
+                max_width = 7.5 * inch  # A4 width minus smaller margins (8.27 - 1.0 = 7.27, rounded to 7.5)
+                max_height = 10 * inch  # A4 height minus smaller margins (11.69 - 0.8 = 10.89, rounded to 10)
 
                 img_width, img_height = img.size
                 scale = min(max_width / img_width, max_height / img_height, 1.0)
+
+                # Reduce scaling by 10%
+                scale = scale * 0.9
 
                 final_width = img_width * scale
                 final_height = img_height * scale
@@ -208,9 +228,7 @@ class PDFService:
 
             if num_pages > max_pages:
                 story_elements.append(Paragraph(f"PDF file has {num_pages} pages. Only first {max_pages} pages will be included.", self.styles['Normal']))
-
-            story_elements.append(Paragraph(f"PDF Document ({max_pages} page{'s' if max_pages != 1 else ''}):", self.styles['Normal']))
-            story_elements.append(Spacer(1, 12))
+                story_elements.append(Spacer(1, 6))
 
             # Convert each page to an image and embed it
             for page_num in range(max_pages):
@@ -224,12 +242,15 @@ class PDFService:
                 img_data = pix.tobytes("ppm")
                 img = PILImage.open(BytesIO(img_data))
 
-                # Calculate scaling to fit on page
-                max_width = 6.5 * inch
-                max_height = 8 * inch
+                # Calculate scaling to fit on page (with smaller margins)
+                max_width = 7.5 * inch  # Increased due to smaller margins
+                max_height = 10 * inch  # Increased due to smaller margins
 
                 img_width, img_height = img.size
                 scale = min(max_width / img_width, max_height / img_height, 1.0)
+
+                # Reduce scaling by 10%
+                scale = scale * 0.9
 
                 final_width = img_width * scale
                 final_height = img_height * scale
@@ -243,9 +264,7 @@ class PDFService:
                 rl_image = Image(img_buffer, width=final_width, height=final_height)
 
                 if page_num > 0:
-                    story_elements.append(Spacer(1, 12))
-                story_elements.append(Paragraph(f"Page {page_num + 1}:", self.styles['Normal']))
-                story_elements.append(Spacer(1, 6))
+                    story_elements.append(Spacer(1, 8))  # Small spacing between pages
                 story_elements.append(rl_image)
 
             doc.close()

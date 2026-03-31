@@ -140,7 +140,34 @@ def delete_expense(expense_id: int, db: Session = Depends(get_db)):
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
+    # Get evidence items linked to this expense
+    linked_evidence_ids = [link.evidence_item_id for link in expense.evidence_links]
+
+    # Delete the expense (this will cascade delete the expense_evidence_links)
     db.delete(expense)
+    db.flush()  # Ensure the expense and links are deleted before checking for orphans
+
+    # Check for orphaned evidence items and delete them
+    for evidence_id in linked_evidence_ids:
+        evidence = db.query(EvidenceItem).filter(EvidenceItem.id == evidence_id).first()
+        if evidence:
+            # Check if this evidence item has any remaining links to other expenses
+            remaining_links = db.query(ExpenseEvidenceLink).filter(
+                ExpenseEvidenceLink.evidence_item_id == evidence_id
+            ).count()
+
+            if remaining_links == 0:  # Truly orphaned - no links to any expenses
+                # Delete the physical file
+                from app.storage.local_storage import LocalStorage
+                storage = LocalStorage()
+                try:
+                    storage.delete_file(evidence.file_path)
+                except Exception as e:
+                    print(f"Warning: Could not delete file {evidence.file_path}: {e}")
+
+                # Delete the evidence record
+                db.delete(evidence)
+
     db.commit()
     return {"message": "Expense deleted successfully"}
 
