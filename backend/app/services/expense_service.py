@@ -1,0 +1,128 @@
+from sqlalchemy.orm import Session
+from sqlalchemy import and_, extract, func, case
+from decimal import Decimal
+from datetime import date
+from typing import Dict, Any
+from app.models.expense_item import ExpenseItem
+from app.models.expense_category import ExpenseCategory, VATStatus
+from app.models.trip import Trip
+from app.schemas.expense_item import ExpenseItemCreate, ExpenseItemUpdate
+from app.services.vat_calculator import VATCalculator
+
+class ExpenseService:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create_expense(self, expense_data: ExpenseItemCreate) -> ExpenseItem:
+        category = self.db.query(ExpenseCategory).filter(
+            ExpenseCategory.id == expense_data.category_id
+        ).first()
+
+        if not category:
+            raise ValueError(f"Category {expense_data.category_id} not found")
+
+        ex_vat_amount, vat_amount = VATCalculator.calculate_vat_amounts(
+            expense_data.amount_gbp, category.vat_status
+        )
+
+        expense = ExpenseItem(
+            **expense_data.dict(),
+            ex_vat_amount=ex_vat_amount,
+            vat_amount=vat_amount
+        )
+
+        self.db.add(expense)
+        self.db.commit()
+        self.db.refresh(expense)
+        return expense
+
+    def update_expense(self, expense_id: int, expense_data: ExpenseItemUpdate) -> ExpenseItem:
+        expense = self.db.query(ExpenseItem).filter(ExpenseItem.id == expense_id).first()
+        if not expense:
+            raise ValueError(f"Expense {expense_id} not found")
+
+        update_data = expense_data.dict(exclude_unset=True)
+
+        if "amount_gbp" in update_data or "category_id" in update_data:
+            category_id = update_data.get("category_id", expense.category_id)
+            category = self.db.query(ExpenseCategory).filter(
+                ExpenseCategory.id == category_id
+            ).first()
+
+            if not category:
+                raise ValueError(f"Category {category_id} not found")
+
+            amount = update_data.get("amount_gbp", expense.amount_gbp)
+            ex_vat_amount, vat_amount = VATCalculator.calculate_vat_amounts(
+                amount, category.vat_status
+            )
+            update_data["ex_vat_amount"] = ex_vat_amount
+            update_data["vat_amount"] = vat_amount
+
+        for field, value in update_data.items():
+            setattr(expense, field, value)
+
+        self.db.commit()
+        self.db.refresh(expense)
+        return expense
+
+    def get_monthly_report(self, month: int, year: int) -> Dict[str, Any]:
+        expenses = self.db.query(ExpenseItem).join(ExpenseCategory).filter(
+            and_(
+                extract('month', ExpenseItem.date) == month,
+                extract('year', ExpenseItem.date) == year
+            )
+        ).all()
+
+        grouped_by_trip = {}
+        unlinked_expenses = []
+
+        for expense in expenses:
+            if expense.trip_id:
+                if expense.trip_id not in grouped_by_trip:
+                    grouped_by_trip[expense.trip_id] = {
+                        "trip": expense.trip,
+                        "expenses": []
+                    }
+                grouped_by_trip[expense.trip_id]["expenses"].append(expense)
+            else:
+                unlinked_expenses.append(expense)
+
+        totals = self._calculate_totals(expenses)
+
+        return {
+            "month": month,
+            "year": year,
+            "trip_expenses": list(grouped_by_trip.values()),
+            "unlinked_expenses": unlinked_expenses,
+            "totals": totals
+        }
+
+    def _calculate_totals(self, expenses) -> Dict[str, Decimal]:
+        totals = {
+            "standard_rated_gross": Decimal("0.00"),
+            "standard_rated_vat": Decimal("0.00"),
+            "zero_rated": Decimal("0.00"),
+            "out_of_scope": Decimal("0.00"),
+            "total_expenses": Decimal("0.00"),
+            "billable_total": Decimal("0.00"),
+            "non_billable_total": Decimal("0.00")
+        }
+
+        for expense in expenses:
+            if expense.category.vat_status == VATStatus.STANDARD:
+                totals["standard_rated_gross"] += expense.amount_gbp
+                totals["standard_rated_vat"] += expense.vat_amount
+            elif expense.category.vat_status == VATStatus.ZERO_RATED:
+                totals["zero_rated"] += expense.amount_gbp
+            else:
+                totals["out_of_scope"] += expense.amount_gbp
+
+            totals["total_expenses"] += expense.amount_gbp
+
+            if expense.is_billable:
+                totals["billable_total"] += expense.amount_gbp
+            else:
+                totals["non_billable_total"] += expense.amount_gbp
+
+        return totals

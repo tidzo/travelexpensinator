@@ -1,0 +1,78 @@
+from sqlalchemy.orm import Session
+from datetime import date, timedelta
+from decimal import Decimal
+from app.models.trip import Trip
+from app.models.expense_item import ExpenseItem
+from app.models.expense_category import ExpenseCategory, VATStatus
+from app.schemas.trip import TripCreate, TripUpdate
+
+class TripService:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create_trip(self, trip_data: TripCreate) -> Trip:
+        trip = Trip(**trip_data.dict())
+        self.db.add(trip)
+        self.db.flush()
+
+        self._create_overnight_expenses(trip)
+
+        self.db.commit()
+        self.db.refresh(trip)
+        return trip
+
+    def update_trip(self, trip_id: int, trip_data: TripUpdate) -> Trip:
+        trip = self.db.query(Trip).filter(Trip.id == trip_id).first()
+        if not trip:
+            raise ValueError(f"Trip {trip_id} not found")
+
+        old_start = trip.start_date
+        old_end = trip.end_date
+
+        for field, value in trip_data.dict(exclude_unset=True).items():
+            setattr(trip, field, value)
+
+        if (trip_data.start_date and trip_data.start_date != old_start) or \
+           (trip_data.end_date and trip_data.end_date != old_end):
+            self._delete_overnight_expenses(trip)
+            self._create_overnight_expenses(trip)
+
+        self.db.commit()
+        self.db.refresh(trip)
+        return trip
+
+    def _create_overnight_expenses(self, trip: Trip):
+        incidental_category = self.db.query(ExpenseCategory).filter(
+            ExpenseCategory.name == "Incidental Overnight Expenses"
+        ).first()
+
+        if not incidental_category:
+            return
+
+        nights = (trip.end_date - trip.start_date).days
+
+        for night in range(nights):
+            expense_date = trip.start_date + timedelta(days=night)
+
+            expense = ExpenseItem(
+                trip_id=trip.id,
+                category_id=incidental_category.id,
+                date=expense_date,
+                description=f"Overnight incidentals for {expense_date}",
+                amount_gbp=incidental_category.default_amount or Decimal("5.00"),
+                ex_vat_amount=incidental_category.default_amount or Decimal("5.00"),
+                vat_amount=Decimal("0.00"),
+                is_billable=True
+            )
+            self.db.add(expense)
+
+    def _delete_overnight_expenses(self, trip: Trip):
+        incidental_category = self.db.query(ExpenseCategory).filter(
+            ExpenseCategory.name == "Incidental Overnight Expenses"
+        ).first()
+
+        if incidental_category:
+            self.db.query(ExpenseItem).filter(
+                ExpenseItem.trip_id == trip.id,
+                ExpenseItem.category_id == incidental_category.id
+            ).delete()

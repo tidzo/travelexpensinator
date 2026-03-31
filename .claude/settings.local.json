@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p backend/app/{models,schemas,services,api,core,storage} backend/tests frontend/src/{components,pages,services,types,utils} uploads)",
+      "Bash(python -m alembic init migrations)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

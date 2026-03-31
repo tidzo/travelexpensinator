@@ -1,0 +1,324 @@
+Travel Expense Manager - Original User Prompts
+================================================
+
+This file contains the original prompts given by the user to build this travel expense management system.
+
+## Prompt 1 — Project Goal
+
+You are building a personal travel expense management web application.
+
+This system is used by a UK contractor to plan and record work trips and produce monthly expense reports with VAT calculations and a PDF evidence binder.
+
+The application will initially be single-user and run locally, but must be designed so it could later be:
+
+Open sourced
+Hosted on AWS
+Extended with email parsing
+Extended to multi-user
+
+The system must be cleanly architected and domain-driven, not just CRUD screens.
+
+Use the following stack:
+
+Backend:
+
+Python 3.12
+FastAPI
+SQLAlchemy ORM
+Alembic migrations
+SQLite initially (must be easy to switch to PostgreSQL later)
+Pydantic models
+File uploads stored on local filesystem
+
+Frontend:
+
+React
+TypeScript
+Vite
+Material UI (or similar modern component library)
+Mobile-friendly responsive design
+
+Other:
+
+Docker + docker-compose
+Makefile for common commands
+Pytest for backend tests
+Generate PDF files for reports
+
+Uploaded files must be stored using this structure:
+
+uploads/YYYY/MM/filename.ext
+
+Filenames must be human-readable and machine-readable and include the date:
+
+Example:
+
+uploads/2026/03/train_2026_03_31_DON_KGX.pdf
+uploads/2026/03/hotel_2026_03_31_premier_inn_invoice.pdf
+uploads/2026/03/meal_2026_03_31_wagamama.jpg
+
+The database must store:
+
+Original filename
+Stored filename
+File path
+Upload date
+File type
+
+The storage system must be abstracted so it could later be replaced with S3.
+
+Database Schema (Authoritative Version)
+
+Use this as the single source of truth for the data model.
+
+Entity Relationship Overview
+Trip
+ ├── Journey
+ │     ├── Leg
+ │     │     └── ExpenseItem
+ │     └── ExpenseItem
+ ├── ExpenseItem
+ └── EvidenceItem (via ExpenseEvidenceLink)
+
+ExpenseItem
+ └── ExpenseCategory
+
+Leg
+ ├── origin_location_id → Location
+ └── destination_location_id → Location
+Tables
+Location
+
+Stores reusable places like Home, Office, Hotel, Stations, Airports.
+
+Location
+--------
+id (PK)
+name
+type                -- ENUM: HOME, WORK, HOTEL, STATION, AIRPORT, OTHER
+notes
+created_at
+Trip
+Trip
+----
+id (PK)
+start_date          -- YYYY-MM-DD
+end_date            -- YYYY-MM-DD
+notes
+created_at
+updated_at
+
+Business rule:
+
+Overnight incidental expenses generated automatically.
+Journey
+Journey
+-------
+id (PK)
+trip_id (FK -> Trip.id)
+date
+description
+created_at
+
+Index:
+
+(trip_id, date)
+Leg
+Leg
+---
+id (PK)
+journey_id (FK -> Journey.id)
+mode_of_transport       -- ENUM: TRAIN, TUBE, TAXI, FLIGHT, BUS, WALK, CAR, OTHER
+origin_location_id (FK -> Location.id)
+destination_location_id (FK -> Location.id)
+notes
+created_at
+ExpenseCategory
+ExpenseCategory
+---------------
+id (PK)
+name
+vat_status          -- ENUM: STANDARD, ZERO_RATED, OUT_OF_SCOPE
+default_amount      -- nullable
+created_at
+
+Seed with:
+
+Train (STANDARD)
+Tube (STANDARD)
+Taxi (STANDARD)
+Hotel (STANDARD)
+Meal (STANDARD)
+Incidental Overnight Expenses (OUT_OF_SCOPE, default 5.00)
+Other (ZERO_RATED)
+ExpenseItem
+ExpenseItem
+-----------
+id (PK)
+trip_id (FK -> Trip.id)                -- nullable
+journey_id (FK -> Journey.id)          -- nullable
+leg_id (FK -> Leg.id)                  -- nullable
+category_id (FK -> ExpenseCategory.id)
+date
+description
+amount_gbp
+ex_vat_amount
+vat_amount
+is_billable (boolean)
+created_at
+updated_at
+
+Indexes:
+
+date
+trip_id
+category_id
+
+Important rules:
+
+Some expenses belong to Trip but not Journey
+Some belong to Journey but not Leg
+Some belong to nothing except the Month (e.g. TfL monthly total)
+EvidenceItem
+EvidenceItem
+------------
+id (PK)
+file_path
+stored_filename
+original_filename
+file_type
+upload_date
+description
+created_at
+ExpenseEvidenceLink (Many-to-Many)
+ExpenseEvidenceLink
+-------------------
+expense_item_id (FK -> ExpenseItem.id)
+evidence_item_id (FK -> EvidenceItem.id)
+
+PRIMARY KEY (expense_item_id, evidence_item_id)
+Important Business Logic (Must Be Implemented in Service Layer)
+Overnight Expense Calculation
+nights = end_date - start_date
+
+For each night:
+    create ExpenseItem:
+        category = "Incidental Overnight Expenses"
+        amount = 5.00
+        date = overnight date
+        trip_id = Trip.id
+        is_billable = true
+
+If trip dates change:
+
+Delete existing incidental items
+Recreate them
+VAT Calculation
+
+If STANDARD:
+
+ex_vat_amount = amount / 1.2
+vat_amount = amount - ex_vat_amount
+
+Else:
+
+ex_vat_amount = 0
+vat_amount = 0
+
+These should be calculated automatically when ExpenseItem is created or edited.
+
+Monthly Report Logic
+
+For a given month:
+
+Include:
+
+All ExpenseItems in that month
+Group by Trip
+Include items not linked to Trip
+
+Totals required:
+
+VAT Type    Total
+Standard Rated Gross
+Standard Rated VAT
+Zero Rated
+Out Of Scope
+Total Expenses
+Billable Total
+Non-Billable Total
+Evidence Binder Ordering Logic
+
+EvidenceItems included in binder must be:
+
+Ordered by:
+
+MIN(ExpenseItem.date) for all ExpenseItems linked to that EvidenceItem
+
+Each EvidenceItem appears once only in the binder.
+
+File Storage Rules
+
+Files stored as:
+
+uploads/YYYY/MM/<type>_YYYY_MM_DD_description.ext
+
+Examples:
+
+uploads/2026/03/train_2026_03_31_DON_KGX.pdf
+uploads/2026/03/hotel_2026_03_31_premier_inn.pdf
+uploads/2026/03/meal_2026_03_31_wagamama.jpg
+
+Database stores:
+
+stored_filename
+original_filename
+file_path
+upload_date
+file_type
+Constraints & Data Integrity Rules
+
+These are important — include them in the agent prompt:
+
+ExpenseItem must have:
+category_id
+amount_gbp
+date
+ExpenseItem must have at least one of:
+trip_id
+journey_id
+leg_id
+OR be marked as "monthly expense"
+
+(You may implement a boolean is_monthly_expense)
+
+Leg must belong to Journey
+Journey must belong to Trip
+Deleting Trip should delete Journeys, Legs, and related ExpenseItems (but NOT EvidenceItems)
+Deleting ExpenseItem should NOT delete EvidenceItem
+Deleting EvidenceItem should remove links but not ExpenseItems
+
+PLAN first
+
+## Follow-up Prompts
+
+### Prompt 2 - Dependency Management
+"create a .gitignore file appropriate to this project. Also please explain how the python virtual env or similar works for this project. Is there any dependency management etc, any pyproject.toml or similar? I quite like 'uv'."
+
+### Prompt 3 - Documentation
+"Has the README been updated with those details? Also please create an AGENTS.md to help yourself or future instances manage the system."
+
+### Prompt 4 - Prompt Documentation
+"can you write the prompts I have given you into PROMPTS.txt?"
+
+## Implementation Notes
+
+The system was built following these key principles:
+- Domain-driven design with clear separation of concerns
+- Service layer containing all business logic
+- Storage abstraction for future cloud migration
+- Mobile-first responsive design
+- Modern Python tooling with uv and pyproject.toml
+- Comprehensive testing and code quality tools
+- Docker containerization for easy deployment
+- Clean API design with automatic documentation
