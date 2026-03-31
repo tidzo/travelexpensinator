@@ -21,7 +21,7 @@ import {
   Button,
   TextField,
 } from '@mui/material';
-import { Add, Edit, Delete, AttachFile, AttachmentOutlined, Link } from '@mui/icons-material';
+import { Add, Edit, Delete, AttachFile, AttachmentOutlined, Link, Restaurant, Hotel, DirectionsTransit } from '@mui/icons-material';
 import { ExpenseItem, Trip, Journey, Leg, Location, ExpenseCategory, EvidenceItem } from '../types';
 import { api } from '../services/api';
 
@@ -148,6 +148,18 @@ function ExpensesList() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const getCategoryIcon = (categoryName: string) => {
+    const name = categoryName.toLowerCase();
+    if (name.includes('subsistence')) {
+      return <Restaurant fontSize="small" />;
+    } else if (name.includes('accommodation') || name.includes('incidental')) {
+      return <Hotel fontSize="small" />;
+    } else if (name.includes('travel')) {
+      return <DirectionsTransit fontSize="small" />;
+    }
+    return null;
   };
 
 

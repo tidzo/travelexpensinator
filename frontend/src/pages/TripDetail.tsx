@@ -31,6 +31,8 @@ import {
   DirectionsTransit,
   Today,
   Receipt,
+  Restaurant,
+  Hotel,
 } from '@mui/icons-material';
 import { Trip, Journey, Leg, Location, ExpenseCategory, ExpenseItem } from '../types';
 import { api } from '../services/api';
@@ -150,6 +152,18 @@ function TripDetail() {
     const monthName = start.toLocaleDateString('en-GB', { month: 'long' });
 
     return `Trip: ${startDayShort} ${startDay} - ${endDayShort} ${endDay} ${monthName}`;
+  };
+
+  const getCategoryIcon = (categoryName: string) => {
+    const name = categoryName.toLowerCase();
+    if (name.includes('subsistence')) {
+      return <Restaurant fontSize="small" sx={{ mr: 1, color: 'action.active' }} />;
+    } else if (name.includes('accommodation') || name.includes('incidental')) {
+      return <Hotel fontSize="small" sx={{ mr: 1, color: 'action.active' }} />;
+    } else if (name.includes('travel')) {
+      return <DirectionsTransit fontSize="small" sx={{ mr: 1, color: 'action.active' }} />;
+    }
+    return null;
   };
 
   const handleCreateExpenseFromTrip = () => {
@@ -308,7 +322,14 @@ function TripDetail() {
                 {tripOnlyExpenses.map((expense) => (
                   <ListItem key={expense.id}>
                     <ListItemText
-                      primary={expense.description}
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          {getCategoryIcon(categories.find(c => c.id === expense.category_id)?.name || '')}
+                          <Typography variant="body1">
+                            {expense.description}
+                          </Typography>
+                        </Box>
+                      }
                       secondary={
                         <Box>
                           <Typography variant="body2" color="text.secondary">
