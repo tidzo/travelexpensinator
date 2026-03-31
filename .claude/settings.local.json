@@ -14,7 +14,8 @@
       "Bash(docker-compose exec backend ls -la /app/data/)",
       "Bash(docker-compose cp backend:/app/data/app.db ./data/app.db)",
       "Bash(docker-compose up -d)",
-      "Bash(docker-compose up -d --remove-orphans)"
+      "Bash(docker-compose up -d --remove-orphans)",
+      "Bash(docker-compose logs frontend --tail=20)"
     ],
     "deny": [],
     "ask": []

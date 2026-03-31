@@ -22,7 +22,7 @@ import {
   TextField,
 } from '@mui/material';
 import { Add, Edit, Delete, AttachFile } from '@mui/icons-material';
-import { ExpenseItem, Trip, Journey, Leg } from '../types';
+import { ExpenseItem, Trip, Journey, Leg, Location } from '../types';
 import { api } from '../services/api';
 
 function ExpensesList() {
@@ -30,6 +30,7 @@ function ExpensesList() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [legs, setLegs] = useState<Leg[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
@@ -48,16 +49,18 @@ function ExpensesList() {
 
   const loadData = async () => {
     try {
-      const [expensesData, tripsData, journeysData, legsData] = await Promise.all([
+      const [expensesData, tripsData, journeysData, legsData, locationsData] = await Promise.all([
         api.get<ExpenseItem[]>(`/expenses?month=${filterMonth}&year=${filterYear}`),
         api.get<Trip[]>('/trips'),
         api.get<Journey[]>('/journeys'),
-        api.get<Leg[]>('/legs')
+        api.get<Leg[]>('/legs'),
+        api.get<Location[]>('/locations')
       ]);
       setExpenses(expensesData);
       setTrips(tripsData);
       setJourneys(journeysData);
       setLegs(legsData);
+      setLocations(locationsData);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -327,7 +330,8 @@ function ExpensesList() {
             <Select
               value={newExpense.trip_id || ''}
               onChange={(e) => {
-                const tripId = e.target.value as number | undefined;
+                const value = e.target.value;
+                const tripId = value === '' ? undefined : Number(value);
                 setNewExpense({
                   ...newExpense,
                   trip_id: tripId,
@@ -352,7 +356,8 @@ function ExpensesList() {
               <Select
                 value={newExpense.journey_id || ''}
                 onChange={(e) => {
-                  const journeyId = e.target.value as number | undefined;
+                  const value = e.target.value;
+                  const journeyId = value === '' ? undefined : Number(value);
                   setNewExpense({
                     ...newExpense,
                     journey_id: journeyId,
@@ -378,17 +383,26 @@ function ExpensesList() {
               <InputLabel>Transport Leg (Optional)</InputLabel>
               <Select
                 value={newExpense.leg_id || ''}
-                onChange={(e) => setNewExpense({ ...newExpense, leg_id: e.target.value as number | undefined })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNewExpense({ ...newExpense, leg_id: value === '' ? undefined : Number(value) });
+                }}
                 label="Transport Leg (Optional)"
               >
                 <MenuItem value="">None</MenuItem>
                 {legs
                   .filter(leg => leg.journey_id === newExpense.journey_id)
-                  .map((leg) => (
-                    <MenuItem key={leg.id} value={leg.id}>
-                      {leg.mode_of_transport}: {leg.origin_location?.name} → {leg.destination_location?.name}
-                    </MenuItem>
-                  ))}
+                  .map((leg) => {
+                    const originLocation = locations.find(loc => loc.id === leg.origin_location_id);
+                    const destLocation = locations.find(loc => loc.id === leg.destination_location_id);
+                    const originName = originLocation?.name || `Location ${leg.origin_location_id}`;
+                    const destName = destLocation?.name || `Location ${leg.destination_location_id}`;
+                    return (
+                      <MenuItem key={leg.id} value={leg.id}>
+                        {leg.mode_of_transport}: {originName} → {destName}
+                      </MenuItem>
+                    );
+                  })}
               </Select>
             </FormControl>
           )}

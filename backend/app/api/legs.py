@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from app.core.database import get_db
 from app.models.leg import Leg
@@ -20,7 +20,10 @@ def list_legs(
     journey_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Leg)
+    query = db.query(Leg).options(
+        joinedload(Leg.origin_location),
+        joinedload(Leg.destination_location)
+    )
     if journey_id:
         query = query.filter(Leg.journey_id == journey_id)
     return query.order_by(Leg.created_at).all()

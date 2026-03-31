@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import json
+from datetime import date
 from app.core.database import get_db
 from app.models.journey import Journey
 from app.schemas.journey import JourneyCreate, JourneyUpdate, JourneyResponse
@@ -33,13 +35,26 @@ def get_journey(journey_id: int, db: Session = Depends(get_db)):
     return journey
 
 @router.put("/{journey_id}", response_model=JourneyResponse)
-def update_journey(journey_id: int, journey_update: JourneyUpdate, db: Session = Depends(get_db)):
+async def update_journey(journey_id: int, request: Request, db: Session = Depends(get_db)):
     journey = db.query(Journey).filter(Journey.id == journey_id).first()
     if not journey:
         raise HTTPException(status_code=404, detail="Journey not found")
 
-    for field, value in journey_update.dict(exclude_unset=True).items():
-        setattr(journey, field, value)
+    # Manual parsing to avoid Pydantic date validation issues
+    body = await request.body()
+    data = json.loads(body)
+
+    if 'trip_id' in data:
+        journey.trip_id = data['trip_id']
+
+    if 'date' in data:
+        if isinstance(data['date'], str):
+            journey.date = date.fromisoformat(data['date'])
+        else:
+            journey.date = data['date']
+
+    if 'description' in data:
+        journey.description = data['description']
 
     db.commit()
     db.refresh(journey)
