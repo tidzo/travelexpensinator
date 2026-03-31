@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import trips, expenses, locations, files, reports
+from app.api import trips, expenses, locations, files, reports, journeys, legs
 # Import all models to ensure they're registered with Base
 from app.models import *
 import os
@@ -29,6 +29,8 @@ os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(trips.router, prefix="/api")
+app.include_router(journeys.router, prefix="/api")
+app.include_router(legs.router, prefix="/api")
 app.include_router(expenses.router, prefix="/api")
 app.include_router(locations.router, prefix="/api")
 app.include_router(files.router, prefix="/api")

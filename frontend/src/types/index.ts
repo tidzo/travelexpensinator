@@ -6,6 +6,26 @@ export interface Location {
   created_at: string;
 }
 
+export interface Journey {
+  id: number;
+  trip_id: number;
+  date: string;
+  description?: string;
+  created_at: string;
+}
+
+export interface Leg {
+  id: number;
+  journey_id: number;
+  mode_of_transport: 'TRAIN' | 'TUBE' | 'TAXI' | 'FLIGHT' | 'BUS' | 'WALK' | 'CAR' | 'OTHER';
+  origin_location_id: number;
+  destination_location_id: number;
+  notes?: string;
+  created_at: string;
+  origin_location?: Location;
+  destination_location?: Location;
+}
+
 export interface Trip {
   id: number;
   start_date: string;
