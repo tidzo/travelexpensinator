@@ -54,7 +54,7 @@ function TripDetail() {
   });
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseParentContext, setExpenseParentContext] = useState<{
-    type: 'trip' | 'journey';
+    type: 'trip';
     id: number;
     date: string;
     categoryId?: number;
@@ -146,16 +146,6 @@ function TripDetail() {
     setExpenseDialogOpen(true);
   };
 
-  const handleCreateExpenseFromJourney = (journey: Journey) => {
-    const travelCategory = categories.find(cat => cat.name === 'Travel');
-    setExpenseParentContext({
-      type: 'journey',
-      id: journey.id,
-      date: journey.date,
-      categoryId: travelCategory?.id
-    });
-    setExpenseDialogOpen(true);
-  };
 
 
   if (loading) {
@@ -254,15 +244,6 @@ function TripDetail() {
                 </Box>
               </AccordionSummary>
               <AccordionDetails>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Receipt />}
-                  onClick={() => handleCreateExpenseFromJourney(journey)}
-                  sx={{ mb: 2 }}
-                >
-                  Add Journey Expense
-                </Button>
                 <LegsList
                   journeyId={journey.id}
                   locations={locations}
@@ -331,8 +312,7 @@ function TripDetail() {
         initialData={expenseParentContext ? {
           date: expenseParentContext.date,
           categoryId: expenseParentContext.categoryId,
-          tripId: expenseParentContext.type === 'trip' ? expenseParentContext.id : trip?.id,
-          journeyId: expenseParentContext.type === 'journey' ? expenseParentContext.id : undefined
+          tripId: expenseParentContext.id
         } : undefined}
         onExpenseCreated={() => {
           // Could reload trip data or show a success message
