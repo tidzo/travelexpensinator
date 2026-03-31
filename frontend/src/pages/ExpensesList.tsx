@@ -14,6 +14,12 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
 } from '@mui/material';
 import { Add, Edit, Delete, AttachFile } from '@mui/icons-material';
 import { ExpenseItem } from '../types';
@@ -24,6 +30,14 @@ function ExpensesList() {
   const [loading, setLoading] = useState(true);
   const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newExpense, setNewExpense] = useState({
+    category_id: 1, // Default to first category
+    date: new Date().toISOString().split('T')[0],
+    description: '',
+    amount_gbp: '',
+    is_billable: true
+  });
 
   const loadExpenses = async () => {
     try {
@@ -64,6 +78,26 @@ function ExpensesList() {
 
   const getBillableChipColor = (isBillable: boolean) => {
     return isBillable ? 'success' : 'warning';
+  };
+
+  const handleCreateExpense = async () => {
+    try {
+      const expense = await api.post<ExpenseItem>('/expenses', {
+        ...newExpense,
+        amount_gbp: parseFloat(newExpense.amount_gbp)
+      });
+      setExpenses([...expenses, expense]);
+      setDialogOpen(false);
+      setNewExpense({
+        category_id: 1,
+        date: new Date().toISOString().split('T')[0],
+        description: '',
+        amount_gbp: '',
+        is_billable: true
+      });
+    } catch (error) {
+      console.error('Failed to create expense:', error);
+    }
   };
 
   if (loading) {
@@ -184,6 +218,7 @@ function ExpensesList() {
       <Fab
         color="primary"
         aria-label="add expense"
+        onClick={() => setDialogOpen(true)}
         sx={{
           position: 'fixed',
           bottom: 80,
@@ -192,6 +227,65 @@ function ExpensesList() {
       >
         <Add />
       </Fab>
+
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New Expense</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Description"
+            fullWidth
+            variant="outlined"
+            value={newExpense.description}
+            onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Amount (GBP)"
+            type="number"
+            step="0.01"
+            fullWidth
+            variant="outlined"
+            value={newExpense.amount_gbp}
+            onChange={(e) => setNewExpense({ ...newExpense, amount_gbp: e.target.value })}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            value={newExpense.date}
+            onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 2 }}
+          />
+          <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
+            <InputLabel>Billable</InputLabel>
+            <Select
+              value={newExpense.is_billable}
+              onChange={(e) => setNewExpense({ ...newExpense, is_billable: e.target.value as boolean })}
+              label="Billable"
+            >
+              <MenuItem value={true}>Yes</MenuItem>
+              <MenuItem value={false}>No</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleCreateExpense}
+            variant="contained"
+            disabled={!newExpense.description || !newExpense.amount_gbp}
+          >
+            Create Expense
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

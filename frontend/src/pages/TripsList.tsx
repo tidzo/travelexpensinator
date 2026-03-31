@@ -10,6 +10,12 @@ import {
   ListItemText,
   IconButton,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
 } from '@mui/material';
 import { Add, Edit, Delete } from '@mui/icons-material';
 import { Trip } from '../types';
@@ -18,6 +24,12 @@ import { api } from '../services/api';
 function TripsList() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newTrip, setNewTrip] = useState({
+    start_date: '',
+    end_date: '',
+    notes: ''
+  });
 
   const loadTrips = async () => {
     try {
@@ -56,6 +68,17 @@ function TripsList() {
     const end = new Date(endDate);
     const nights = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24));
     return nights === 1 ? '1 night' : `${nights} nights`;
+  };
+
+  const handleCreateTrip = async () => {
+    try {
+      const trip = await api.post<Trip>('/trips', newTrip);
+      setTrips([...trips, trip]);
+      setDialogOpen(false);
+      setNewTrip({ start_date: '', end_date: '', notes: '' });
+    } catch (error) {
+      console.error('Failed to create trip:', error);
+    }
   };
 
   if (loading) {
@@ -134,6 +157,7 @@ function TripsList() {
       <Fab
         color="primary"
         aria-label="add trip"
+        onClick={() => setDialogOpen(true)}
         sx={{
           position: 'fixed',
           bottom: 80,
@@ -142,6 +166,55 @@ function TripsList() {
       >
         <Add />
       </Fab>
+
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New Trip</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Start Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            value={newTrip.start_date}
+            onChange={(e) => setNewTrip({ ...newTrip, start_date: e.target.value })}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="End Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            value={newTrip.end_date}
+            onChange={(e) => setNewTrip({ ...newTrip, end_date: e.target.value })}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Notes"
+            fullWidth
+            multiline
+            rows={3}
+            variant="outlined"
+            value={newTrip.notes}
+            onChange={(e) => setNewTrip({ ...newTrip, notes: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleCreateTrip}
+            variant="contained"
+            disabled={!newTrip.start_date || !newTrip.end_date}
+          >
+            Create Trip
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -18,6 +18,7 @@ function Navigation() {
       <BottomNavigation
         value={value}
         onChange={(_event, newValue) => handleNavigation(newValue)}
+        showLabels
       >
         <BottomNavigationAction
           label="Trips"
