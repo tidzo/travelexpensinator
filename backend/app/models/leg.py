@@ -6,13 +6,9 @@ import enum
 
 class TransportMode(str, enum.Enum):
     TRAIN = "TRAIN"
-    TUBE = "TUBE"
+    TFL = "TFL"
     TAXI = "TAXI"
-    FLIGHT = "FLIGHT"
-    BUS = "BUS"
-    WALK = "WALK"
-    CAR = "CAR"
-    OTHER = "OTHER"
+    COACH = "COACH"
 
 class Leg(Base):
     __tablename__ = "legs"
