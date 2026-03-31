@@ -30,10 +30,12 @@ import {
   ArrowBack,
   DirectionsTransit,
   Today,
+  Receipt,
 } from '@mui/icons-material';
-import { Trip, Journey, Leg, Location } from '../types';
+import { Trip, Journey, Leg, Location, ExpenseCategory } from '../types';
 import { api } from '../services/api';
 import LegsList from '../components/LegsList';
+import ExpenseDialog from '../components/ExpenseDialog';
 
 function TripDetail() {
   const { tripId } = useParams<{ tripId: string }>();
@@ -41,6 +43,7 @@ function TripDetail() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [journeyDialogOpen, setJourneyDialogOpen] = useState(false);
   const [editingJourney, setEditingJourney] = useState<Journey | null>(null);
@@ -49,17 +52,26 @@ function TripDetail() {
     date: '',
     description: ''
   });
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [expenseParentContext, setExpenseParentContext] = useState<{
+    type: 'trip' | 'journey' | 'leg';
+    id: number;
+    date: string;
+    categoryId?: number;
+  } | null>(null);
 
   const loadData = async () => {
     try {
-      const [tripData, journeysData, locationsData] = await Promise.all([
+      const [tripData, journeysData, locationsData, categoriesData] = await Promise.all([
         api.get<Trip>(`/trips/${tripId}`),
         api.get<Journey[]>(`/journeys?trip_id=${tripId}`),
-        api.get<Location[]>('/locations')
+        api.get<Location[]>('/locations'),
+        api.get<ExpenseCategory[]>('/expense-categories')
       ]);
       setTrip(tripData);
       setJourneys(journeysData);
       setLocations(locationsData);
+      setCategories(categoriesData);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -124,6 +136,38 @@ function TripDetail() {
     return `${dayName} ${isoDate}`;
   };
 
+  const handleCreateExpenseFromTrip = () => {
+    if (!trip) return;
+    setExpenseParentContext({
+      type: 'trip',
+      id: trip.id,
+      date: trip.start_date
+    });
+    setExpenseDialogOpen(true);
+  };
+
+  const handleCreateExpenseFromJourney = (journey: Journey) => {
+    const travelCategory = categories.find(cat => cat.name === 'Travel');
+    setExpenseParentContext({
+      type: 'journey',
+      id: journey.id,
+      date: journey.date,
+      categoryId: travelCategory?.id
+    });
+    setExpenseDialogOpen(true);
+  };
+
+  const handleCreateExpenseFromLeg = (leg: Leg, journeyDate: string) => {
+    const travelCategory = categories.find(cat => cat.name === 'Travel');
+    setExpenseParentContext({
+      type: 'leg',
+      id: leg.id,
+      date: journeyDate,
+      categoryId: travelCategory?.id
+    });
+    setExpenseDialogOpen(true);
+  };
+
   if (loading) {
     return <Typography>Loading trip details...</Typography>;
   }
@@ -149,10 +193,18 @@ function TripDetail() {
             {formatDateWithDay(trip.start_date)} - {formatDateWithDay(trip.end_date)}
           </Typography>
           {trip.notes && (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               {trip.notes}
             </Typography>
           )}
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Receipt />}
+            onClick={handleCreateExpenseFromTrip}
+          >
+            Add Trip Expense
+          </Button>
         </CardContent>
       </Card>
 
@@ -188,7 +240,7 @@ function TripDetail() {
                       </Typography>
                     )}
                   </Box>
-                  <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <IconButton
                       onClick={(e) => {
                         e.stopPropagation();
@@ -212,7 +264,20 @@ function TripDetail() {
                 </Box>
               </AccordionSummary>
               <AccordionDetails>
-                <LegsList journeyId={journey.id} locations={locations} />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Receipt />}
+                  onClick={() => handleCreateExpenseFromJourney(journey)}
+                  sx={{ mb: 2 }}
+                >
+                  Add Journey Expense
+                </Button>
+                <LegsList
+                  journeyId={journey.id}
+                  locations={locations}
+                  onCreateExpenseFromLeg={(leg) => handleCreateExpenseFromLeg(leg, journey.date)}
+                />
               </AccordionDetails>
             </Accordion>
           ))}
@@ -269,6 +334,23 @@ function TripDetail() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ExpenseDialog
+        open={expenseDialogOpen}
+        onClose={() => setExpenseDialogOpen(false)}
+        categories={categories}
+        initialData={expenseParentContext ? {
+          date: expenseParentContext.date,
+          categoryId: expenseParentContext.categoryId,
+          tripId: expenseParentContext.type === 'trip' ? expenseParentContext.id : trip?.id,
+          journeyId: expenseParentContext.type === 'journey' ? expenseParentContext.id : undefined,
+          legId: expenseParentContext.type === 'leg' ? expenseParentContext.id : undefined
+        } : undefined}
+        onExpenseCreated={() => {
+          // Could reload trip data or show a success message
+          console.log('Expense created successfully');
+        }}
+      />
     </Box>
   );
 }

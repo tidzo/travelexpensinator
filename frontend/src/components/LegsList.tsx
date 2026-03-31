@@ -26,6 +26,7 @@ import {
   Delete,
   TripOrigin,
   FlagOutlined,
+  Receipt,
 } from '@mui/icons-material';
 import { Leg, Location } from '../types';
 import { api } from '../services/api';
@@ -33,9 +34,10 @@ import { api } from '../services/api';
 interface LegsListProps {
   journeyId: number;
   locations: Location[];
+  onCreateExpenseFromLeg?: (leg: Leg) => void;
 }
 
-function LegsList({ journeyId, locations }: LegsListProps) {
+function LegsList({ journeyId, locations, onCreateExpenseFromLeg }: LegsListProps) {
   const [legs, setLegs] = useState<Leg[]>([]);
   const [loading, setLoading] = useState(true);
   const [legDialogOpen, setLegDialogOpen] = useState(false);
@@ -202,6 +204,17 @@ function LegsList({ journeyId, locations }: LegsListProps) {
                       <Typography variant="caption" color="text.secondary">
                         {leg.notes}
                       </Typography>
+                    )}
+                    {onCreateExpenseFromLeg && (
+                      <Button
+                        variant="text"
+                        size="small"
+                        startIcon={<Receipt />}
+                        onClick={() => onCreateExpenseFromLeg(leg)}
+                        sx={{ mt: 1 }}
+                      >
+                        Add Leg Expense
+                      </Button>
                     )}
                   </Box>
                 </Box>
