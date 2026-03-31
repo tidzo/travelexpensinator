@@ -75,7 +75,7 @@ class TripService:
 
     def _create_overnight_expenses(self, trip: Trip):
         incidental_category = self.db.query(ExpenseCategory).filter(
-            ExpenseCategory.name == "Incidental Overnight Expenses"
+            ExpenseCategory.name == "Incidentals"
         ).first()
 
         if not incidental_category:
@@ -90,7 +90,7 @@ class TripService:
                 trip_id=trip.id,
                 category_id=incidental_category.id,
                 date=expense_date,
-                description=f"Overnight incidentals for {expense_date}",
+                description="Incidental Overnight Expenses",
                 amount_gbp=incidental_category.default_amount or Decimal("5.00"),
                 ex_vat_amount=incidental_category.default_amount or Decimal("5.00"),
                 vat_amount=Decimal("0.00"),
@@ -100,7 +100,7 @@ class TripService:
 
     def _delete_overnight_expenses(self, trip: Trip):
         incidental_category = self.db.query(ExpenseCategory).filter(
-            ExpenseCategory.name == "Incidental Overnight Expenses"
+            ExpenseCategory.name == "Incidentals"
         ).first()
 
         if incidental_category:

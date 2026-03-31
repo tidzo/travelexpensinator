@@ -32,7 +32,7 @@ import {
   Today,
   Receipt,
 } from '@mui/icons-material';
-import { Trip, Journey, Leg, Location, ExpenseCategory } from '../types';
+import { Trip, Journey, Leg, Location, ExpenseCategory, ExpenseItem } from '../types';
 import { api } from '../services/api';
 import LegsList from '../components/LegsList';
 import ExpenseDialog from '../components/ExpenseDialog';
@@ -42,6 +42,7 @@ function TripDetail() {
   const navigate = useNavigate();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [journeys, setJourneys] = useState<Journey[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,14 +63,16 @@ function TripDetail() {
 
   const loadData = async () => {
     try {
-      const [tripData, journeysData, locationsData, categoriesData] = await Promise.all([
+      const [tripData, journeysData, expensesData, locationsData, categoriesData] = await Promise.all([
         api.get<Trip>(`/trips/${tripId}`),
         api.get<Journey[]>(`/journeys?trip_id=${tripId}`),
+        api.get<ExpenseItem[]>(`/expenses?trip_id=${tripId}`),
         api.get<Location[]>('/locations'),
         api.get<ExpenseCategory[]>('/expense-categories')
       ]);
       setTrip(tripData);
       setJourneys(journeysData);
+      setExpenses(expensesData);
       setLocations(locationsData);
       setCategories(categoriesData);
     } catch (error) {
@@ -190,14 +193,24 @@ function TripDetail() {
               {trip.notes}
             </Typography>
           )}
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<Receipt />}
-            onClick={handleCreateExpenseFromTrip}
-          >
-            Add Trip Expense
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DirectionsTransit />}
+              onClick={() => setJourneyDialogOpen(true)}
+            >
+              Add Journey
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Receipt />}
+              onClick={handleCreateExpenseFromTrip}
+            >
+              Add Trip Expense
+            </Button>
+          </Box>
         </CardContent>
       </Card>
 
@@ -267,6 +280,56 @@ function TripDetail() {
         </Box>
       )}
 
+      <Typography variant="h5" component="h2" sx={{ mb: 2, mt: 3 }}>
+        Trip Expenses
+      </Typography>
+
+      {(() => {
+        // Filter out expenses that are linked to journeys or legs
+        const tripOnlyExpenses = expenses.filter(expense =>
+          !expense.journey_id && !expense.leg_id
+        );
+
+        return tripOnlyExpenses.length === 0 ? (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" color="text.secondary" textAlign="center">
+                No trip expenses yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary" textAlign="center">
+                Trip expenses (not linked to journeys) will appear here
+              </Typography>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <List>
+                {tripOnlyExpenses.map((expense) => (
+                  <ListItem key={expense.id}>
+                    <ListItemText
+                      primary={expense.description}
+                      secondary={
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            {formatDateWithDay(expense.date.toString())} • £{Number(expense.amount_gbp).toFixed(2)}
+                          </Typography>
+                          {categories.find(c => c.id === expense.category_id)?.name && (
+                            <Typography variant="caption" color="text.secondary">
+                              {categories.find(c => c.id === expense.category_id)?.name}
+                            </Typography>
+                          )}
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       <Fab
         color="primary"
         aria-label="add journey"
@@ -328,8 +391,7 @@ function TripDetail() {
           tripId: expenseParentContext.id
         } : undefined}
         onExpenseCreated={() => {
-          // Could reload trip data or show a success message
-          console.log('Expense created successfully');
+          loadData(); // Reload all data to show the new expense
         }}
       />
     </Box>

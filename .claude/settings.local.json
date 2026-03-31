@@ -1,27 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mkdir -p backend/app/{models,schemas,services,api,core,storage} backend/tests frontend/src/{components,pages,services,types,utils} uploads)",
-      "Bash(python -m alembic init migrations)",
-      "Bash(docker-compose down)",
-      "Bash(docker-compose up -d --build)",
-      "Bash(docker-compose logs backend)",
-      "Bash(docker-compose logs backend --tail=20)",
-      "Bash(docker-compose restart backend)",
-      "Bash(docker-compose logs backend --tail=10)",
-      "Bash(docker-compose logs backend --tail=30)",
-      "Bash(docker-compose logs backend --tail=5)",
-      "Bash(docker-compose exec backend ls -la /app/data/)",
-      "Bash(docker-compose cp backend:/app/data/app.db ./data/app.db)",
-      "Bash(docker-compose up -d)",
-      "Bash(docker-compose up -d --remove-orphans)",
-      "Bash(docker-compose logs frontend --tail=20)",
-      "Bash(cat /Users/matt/travelexpensinator/backend/app/api/__init__.py)",
-      "Bash(docker-compose restart frontend)",
-      "Bash(python3 -c \"\nfrom PIL import Image, ImageDraw, ImageFont\nimport os\n\n# Create a simple test receipt image\nimg = Image.new(''RGB'', (400, 300), color=''white'')\ndraw = ImageDraw.Draw(img)\n\n# Add some text to simulate a receipt\ndraw.text((50, 50), ''TEST RECEIPT'', fill=''black'')\ndraw.text((50, 100), ''Date: 31/03/2026'', fill=''black'')\ndraw.text((50, 150), ''Amount: £25.50'', fill=''black'')\ndraw.text((50, 200), ''Hotel Accommodation'', fill=''black'')\n\n# Save the image\nos.makedirs(''uploads/2026/03'', exist_ok=True)\nimg.save(''uploads/2026/03/test_receipt.jpg'')\nprint(''Test receipt image created'')\n\")",
-      "Bash(docker-compose exec backend python -c \"\nfrom PIL import Image, ImageDraw\nimport os\n\n# Create a simple test receipt image\nimg = Image.new(''RGB'', (400, 300), color=''white'')\ndraw = ImageDraw.Draw(img)\n\n# Add some text to simulate a receipt  \ndraw.text((50, 50), ''TEST RECEIPT'', fill=''black'')\ndraw.text((50, 100), ''Date: 31/03/2026'', fill=''black'')\ndraw.text((50, 150), ''Amount: £25.50'', fill=''black'') \ndraw.text((50, 200), ''Hotel Accommodation'', fill=''black'')\n\n# Save the image\nos.makedirs(''/app/uploads/2026/03'', exist_ok=True)\nimg.save(''/app/uploads/2026/03/test_receipt.jpg'')\nprint(''Test receipt image created'')\n\")",
-      "Bash(docker-compose down backend)",
-      "Bash(docker-compose up -d --build backend)"
+      "Bash(docker-compose exec backend python -c \"\nfrom app.core.database import SessionLocal\nfrom app.models.expense_item import ExpenseItem\nfrom app.models.expense_category import ExpenseCategory\n\ndb = SessionLocal()\n\n# Find the Incidentals category\nincidentals_cat = db.query(ExpenseCategory).filter(ExpenseCategory.name == ''Incidentals'').first()\n\n# Update all existing overnight expenses to have the new description\novernight_expenses = db.query(ExpenseItem).filter(\n    ExpenseItem.category_id == incidentals_cat.id,\n    ExpenseItem.description.like(''Overnight incidentals for%'')\n).all()\n\nprint(f''Updating {len(overnight_expenses)} overnight expenses...'')\n\nfor expense in overnight_expenses:\n    print(f''  Updating expense {expense.id}: {expense.description} -> Incidental Overnight Expenses'')\n    expense.description = ''Incidental Overnight Expenses''\n\ndb.commit()\nprint(''Update complete!'')\n\ndb.close()\n\")"
     ],
     "deny": [],
     "ask": []
