@@ -58,6 +58,7 @@ export interface ExpenseItem {
   is_monthly_expense: boolean;
   created_at: string;
   updated_at: string;
+  evidence_count?: number;
 }
 
 export interface EvidenceItem {

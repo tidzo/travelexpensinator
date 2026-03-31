@@ -86,6 +86,29 @@ function MonthlyReport() {
     }
   };
 
+  const handleGenerateEvidenceBinder = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/reports/evidence-binder/pdf?month=${selectedMonth}&year=${selectedYear}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to generate evidence binder');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `evidence_binder_${selectedYear}_${selectedMonth.toString().padStart(2, '0')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to generate evidence binder:', error);
+      alert('Failed to generate evidence binder. Please try again.');
+    }
+  };
+
   if (loading) {
     return <Typography>Loading report...</Typography>;
   }
@@ -127,14 +150,22 @@ function MonthlyReport() {
           </Select>
         </FormControl>
 
-        <Button
-          variant="outlined"
-          startIcon={<PictureAsPdf />}
-          onClick={handleGeneratePDF}
-          sx={{ ml: 'auto' }}
-        >
-          Generate PDF
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
+          <Button
+            variant="outlined"
+            startIcon={<PictureAsPdf />}
+            onClick={handleGeneratePDF}
+          >
+            Generate Report PDF
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<PictureAsPdf />}
+            onClick={handleGenerateEvidenceBinder}
+          >
+            Generate Evidence Binder
+          </Button>
+        </Box>
       </Box>
 
       {report && (

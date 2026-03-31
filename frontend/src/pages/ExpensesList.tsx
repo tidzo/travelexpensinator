@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -21,8 +21,8 @@ import {
   Button,
   TextField,
 } from '@mui/material';
-import { Add, Edit, Delete, AttachFile } from '@mui/icons-material';
-import { ExpenseItem, Trip, Journey, Leg, Location, ExpenseCategory } from '../types';
+import { Add, Edit, Delete, AttachFile, AttachmentOutlined, Link } from '@mui/icons-material';
+import { ExpenseItem, Trip, Journey, Leg, Location, ExpenseCategory, EvidenceItem } from '../types';
 import { api } from '../services/api';
 
 function ExpensesList() {
@@ -37,6 +37,17 @@ function ExpensesList() {
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
+  const [uploadingExpenseId, setUploadingExpenseId] = useState<number | null>(null);
+  const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
+  const [selectedExpenseEvidence, setSelectedExpenseEvidence] = useState<EvidenceItem[]>([]);
+  const [linkEvidenceDialogOpen, setLinkEvidenceDialogOpen] = useState(false);
+  const [linkingExpenseId, setLinkingExpenseId] = useState<number | null>(null);
+  const [availableEvidence, setAvailableEvidence] = useState<EvidenceItem[]>([]);
+  const [evidenceDetailDialogOpen, setEvidenceDetailDialogOpen] = useState(false);
+  const [selectedEvidenceDetail, setSelectedEvidenceDetail] = useState<EvidenceItem | null>(null);
+  const [evidenceLinkedExpenses, setEvidenceLinkedExpenses] = useState<ExpenseItem[]>([]);
+  const [availableExpensesForEvidence, setAvailableExpensesForEvidence] = useState<ExpenseItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [newExpense, setNewExpense] = useState({
     category_id: 1, // Default to first category
     date: new Date().toISOString().split('T')[0],
@@ -86,6 +97,48 @@ function ExpensesList() {
     }
   };
 
+  const handleFileUpload = async (expenseId: number) => {
+    setUploadingExpenseId(expenseId);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !uploadingExpenseId) return;
+
+    try {
+      const expense = expenses.find(e => e.id === uploadingExpenseId);
+      if (!expense) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_date', expense.date);
+      formData.append('description', `Evidence for: ${expense.description}`);
+
+      const evidenceItem = await api.uploadFile('/files/upload', formData);
+
+      // Link the evidence to the expense
+      await api.post('/expense-evidence-links', {
+        expense_item_id: uploadingExpenseId,
+        evidence_item_id: evidenceItem.id
+      });
+
+      // Refresh expenses to show any updates
+      loadData();
+
+      alert('Evidence uploaded successfully!');
+    } catch (error) {
+      console.error('Failed to upload evidence:', error);
+      alert('Failed to upload evidence. Please try again.');
+    } finally {
+      setUploadingExpenseId(null);
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
@@ -99,6 +152,156 @@ function ExpensesList() {
 
   const getBillableChipColor = (isBillable: boolean) => {
     return isBillable ? 'success' : 'warning';
+  };
+
+  const handleViewEvidence = async (expenseId: number) => {
+    try {
+      // Get evidence items for this expense
+      const evidence = await api.get<EvidenceItem[]>(`/expenses/${expenseId}/evidence`);
+      setSelectedExpenseEvidence(evidence);
+      setEvidenceDialogOpen(true);
+    } catch (error) {
+      console.error('Failed to load evidence:', error);
+      alert('Failed to load evidence items.');
+    }
+  };
+
+  const handleLinkExistingEvidence = async (expenseId: number) => {
+    try {
+      // Get all available evidence items
+      const allEvidence = await api.get<EvidenceItem[]>('/files');
+      // Get evidence already linked to this expense
+      const linkedEvidence = await api.get<EvidenceItem[]>(`/expenses/${expenseId}/evidence`);
+
+      // Filter out evidence that's already linked to this expense
+      const linkedIds = new Set(linkedEvidence.map(e => e.id));
+      const available = allEvidence.filter(e => !linkedIds.has(e.id));
+
+      setAvailableEvidence(available);
+      setLinkingExpenseId(expenseId);
+      setLinkEvidenceDialogOpen(true);
+    } catch (error) {
+      console.error('Failed to load evidence:', error);
+      alert('Failed to load evidence items.');
+    }
+  };
+
+  const handleLinkEvidenceToExpense = async (evidenceId: number) => {
+    if (!linkingExpenseId) return;
+
+    try {
+      await api.post('/expense-evidence-links', {
+        expense_item_id: linkingExpenseId,
+        evidence_item_id: evidenceId
+      });
+
+      // Refresh the expenses list to update evidence counts
+      loadData();
+
+      // Close the dialog
+      setLinkEvidenceDialogOpen(false);
+      setLinkingExpenseId(null);
+
+      alert('Evidence linked successfully!');
+    } catch (error) {
+      console.error('Failed to link evidence:', error);
+      alert('Failed to link evidence. It might already be linked to this expense.');
+    }
+  };
+
+  const handleDeleteEvidence = async (evidenceId: number) => {
+    if (!window.confirm('Are you sure you want to delete this evidence item? This will permanently remove the file and all its links to expenses. This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/files/${evidenceId}`);
+
+      // Remove the evidence from the dialog list
+      setSelectedExpenseEvidence(selectedExpenseEvidence.filter(e => e.id !== evidenceId));
+
+      // Refresh the expenses list to update evidence counts
+      loadData();
+
+      alert('Evidence deleted successfully!');
+    } catch (error) {
+      console.error('Failed to delete evidence:', error);
+      alert('Failed to delete evidence. Please try again.');
+    }
+  };
+
+  const handleOpenEvidenceDetail = async (evidence: EvidenceItem) => {
+    try {
+      setSelectedEvidenceDetail(evidence);
+
+      // Get all expenses linked to this evidence
+      const linkedExpenses = await api.get<ExpenseItem[]>(`/files/${evidence.id}/expenses`);
+      setEvidenceLinkedExpenses(linkedExpenses);
+
+      // Get expenses from current month that don't have any evidence AND aren't already linked to this evidence
+      const linkedExpenseIds = new Set(linkedExpenses.map(e => e.id));
+      const availableExpenses = expenses.filter(expense =>
+        !linkedExpenseIds.has(expense.id) &&
+        (!expense.evidence_count || expense.evidence_count === 0)
+      );
+      setAvailableExpensesForEvidence(availableExpenses);
+
+      setEvidenceDetailDialogOpen(true);
+    } catch (error) {
+      console.error('Failed to load evidence details:', error);
+      alert('Failed to load evidence details.');
+    }
+  };
+
+  const handleUnlinkExpenseFromEvidence = async (expenseId: number) => {
+    if (!selectedEvidenceDetail) return;
+
+    try {
+      await api.delete(`/expense-evidence-links/${expenseId}/${selectedEvidenceDetail.id}`);
+
+      // Update the linked expenses list
+      setEvidenceLinkedExpenses(evidenceLinkedExpenses.filter(e => e.id !== expenseId));
+
+      // Add the expense back to available expenses if it has no other evidence
+      const unlinkedExpense = expenses.find(e => e.id === expenseId);
+      if (unlinkedExpense && (!unlinkedExpense.evidence_count || unlinkedExpense.evidence_count <= 1)) {
+        setAvailableExpensesForEvidence([...availableExpensesForEvidence, unlinkedExpense]);
+      }
+
+      // Refresh the expenses list to update evidence counts
+      loadData();
+
+      alert('Evidence unlinked successfully!');
+    } catch (error) {
+      console.error('Failed to unlink evidence:', error);
+      alert('Failed to unlink evidence. Please try again.');
+    }
+  };
+
+  const handleLinkExpenseToEvidence = async (expenseId: number) => {
+    if (!selectedEvidenceDetail) return;
+
+    try {
+      await api.post('/expense-evidence-links', {
+        expense_item_id: expenseId,
+        evidence_item_id: selectedEvidenceDetail.id
+      });
+
+      // Move expense from available to linked
+      const linkedExpense = availableExpensesForEvidence.find(e => e.id === expenseId);
+      if (linkedExpense) {
+        setEvidenceLinkedExpenses([...evidenceLinkedExpenses, linkedExpense]);
+        setAvailableExpensesForEvidence(availableExpensesForEvidence.filter(e => e.id !== expenseId));
+      }
+
+      // Refresh the expenses list to update evidence counts
+      loadData();
+
+      alert('Evidence linked successfully!');
+    } catch (error) {
+      console.error('Failed to link evidence:', error);
+      alert('Failed to link evidence. Please try again.');
+    }
   };
 
   const handleCreateExpense = async () => {
@@ -219,8 +422,24 @@ function ExpensesList() {
               <ListItem
                 secondaryAction={
                   <Box>
-                    <IconButton edge="end" aria-label="attach" sx={{ mr: 1 }}>
+                    <IconButton
+                      edge="end"
+                      aria-label="attach"
+                      sx={{ mr: 1 }}
+                      onClick={() => handleFileUpload(expense.id)}
+                      disabled={uploadingExpenseId === expense.id}
+                      title="Upload new evidence"
+                    >
                       <AttachFile />
+                    </IconButton>
+                    <IconButton
+                      edge="end"
+                      aria-label="link-evidence"
+                      sx={{ mr: 1 }}
+                      onClick={() => handleLinkExistingEvidence(expense.id)}
+                      title="Link existing evidence"
+                    >
+                      <Link />
                     </IconButton>
                     <IconButton
                       edge="end"
@@ -267,6 +486,17 @@ function ExpensesList() {
                             label={`VAT: ${formatCurrency(expense.vat_amount)}`}
                             size="small"
                             variant="outlined"
+                          />
+                        )}
+                        {expense.evidence_count && expense.evidence_count > 0 && (
+                          <Chip
+                            icon={<AttachmentOutlined />}
+                            label={`${expense.evidence_count} evidence`}
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                            onClick={() => handleViewEvidence(expense.id)}
+                            sx={{ cursor: 'pointer' }}
                           />
                         )}
                       </Box>
@@ -449,6 +679,222 @@ function ExpensesList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Evidence viewing dialog */}
+      <Dialog
+        open={evidenceDialogOpen}
+        onClose={() => setEvidenceDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Evidence Items</DialogTitle>
+        <DialogContent>
+          {selectedExpenseEvidence.length === 0 ? (
+            <Typography variant="body1" color="text.secondary">
+              No evidence items found for this expense.
+            </Typography>
+          ) : (
+            <List>
+              {selectedExpenseEvidence.map((evidence) => (
+                <Card key={evidence.id} sx={{ mb: 2 }}>
+                  <ListItem>
+                    <ListItemText
+                      primary={evidence.original_filename}
+                      secondary={
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            {evidence.description && `${evidence.description} • `}
+                            Uploaded: {formatDate(evidence.upload_date)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Type: {evidence.file_type}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                    <Box sx={{ ml: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/uploads/${evidence.file_path}`, '_blank')}
+                        sx={{ mr: 1 }}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => handleOpenEvidenceDetail(evidence)}
+                        sx={{ mr: 1 }}
+                      >
+                        Manage
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteEvidence(evidence.id)}
+                      >
+                        Delete
+                      </Button>
+                    </Box>
+                  </ListItem>
+                </Card>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEvidenceDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Link existing evidence dialog */}
+      <Dialog
+        open={linkEvidenceDialogOpen}
+        onClose={() => setLinkEvidenceDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Link Existing Evidence</DialogTitle>
+        <DialogContent>
+          {availableEvidence.length === 0 ? (
+            <Typography variant="body1" color="text.secondary">
+              No available evidence items to link. All existing evidence is already linked to this expense, or no evidence has been uploaded yet.
+            </Typography>
+          ) : (
+            <List>
+              {availableEvidence.map((evidence) => (
+                <Card key={evidence.id} sx={{ mb: 2 }}>
+                  <ListItem>
+                    <ListItemText
+                      primary={evidence.original_filename}
+                      secondary={
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            {evidence.description && `${evidence.description} • `}
+                            Uploaded: {formatDate(evidence.upload_date)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Type: {evidence.file_type}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                    <Box sx={{ ml: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/uploads/${evidence.file_path}`, '_blank')}
+                        sx={{ mr: 1 }}
+                      >
+                        Preview
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => handleLinkEvidenceToExpense(evidence.id)}
+                      >
+                        Link
+                      </Button>
+                    </Box>
+                  </ListItem>
+                </Card>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLinkEvidenceDialogOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Evidence detail management dialog */}
+      <Dialog
+        open={evidenceDetailDialogOpen}
+        onClose={() => setEvidenceDetailDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {selectedEvidenceDetail ? `Manage Evidence: ${selectedEvidenceDetail.original_filename}` : 'Manage Evidence'}
+        </DialogTitle>
+        <DialogContent>
+          {selectedEvidenceDetail && (
+            <>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Currently linked to:
+              </Typography>
+              {evidenceLinkedExpenses.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  No expenses currently linked to this evidence.
+                </Typography>
+              ) : (
+                <List sx={{ mb: 2 }}>
+                  {evidenceLinkedExpenses.map((expense) => (
+                    <Card key={expense.id} sx={{ mb: 1 }}>
+                      <ListItem>
+                        <ListItemText
+                          primary={expense.description}
+                          secondary={`${formatDate(expense.date)} • ${formatCurrency(expense.amount_gbp)}`}
+                        />
+                        <Button
+                          size="small"
+                          color="error"
+                          onClick={() => handleUnlinkExpenseFromEvidence(expense.id)}
+                        >
+                          Unlink
+                        </Button>
+                      </ListItem>
+                    </Card>
+                  ))}
+                </List>
+              )}
+
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                Available expenses (current month, no evidence):
+              </Typography>
+              {availableExpensesForEvidence.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No available expenses to link. Only expenses from the current month that don't have any evidence are shown here.
+                </Typography>
+              ) : (
+                <List>
+                  {availableExpensesForEvidence.map((expense) => (
+                    <Card key={expense.id} sx={{ mb: 1 }}>
+                      <ListItem>
+                        <ListItemText
+                          primary={expense.description}
+                          secondary={`${formatDate(expense.date)} • ${formatCurrency(expense.amount_gbp)}`}
+                        />
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => handleLinkExpenseToEvidence(expense.id)}
+                        >
+                          Link
+                        </Button>
+                      </ListItem>
+                    </Card>
+                  ))}
+                </List>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEvidenceDetailDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Hidden file input for evidence uploads */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileSelected}
+        accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.xls,.xlsx"
+      />
     </Box>
   );
 }

@@ -6,7 +6,10 @@ from pydantic import ValidationError
 from app.core.database import get_db
 from app.models.expense_item import ExpenseItem
 from app.models.expense_category import ExpenseCategory
+from app.models.expense_evidence_link import ExpenseEvidenceLink
+from app.models.evidence_item import EvidenceItem
 from app.schemas.expense_item import ExpenseItemCreate, ExpenseItemUpdate, ExpenseItemResponse
+from app.schemas.evidence_item import EvidenceItemResponse
 from app.services.expense_service import ExpenseService
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
@@ -27,7 +30,10 @@ def list_expenses(
     year: Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
-    query = db.query(ExpenseItem)
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import func
+
+    query = db.query(ExpenseItem).options(joinedload(ExpenseItem.evidence_links))
 
     if trip_id:
         query = query.filter(ExpenseItem.trip_id == trip_id)
@@ -42,7 +48,31 @@ def list_expenses(
             extract('year', ExpenseItem.date) == year
         )
 
-    return query.all()
+    expenses = query.all()
+
+    # Convert to response format with evidence count
+    response_expenses = []
+    for expense in expenses:
+        expense_dict = {
+            'id': expense.id,
+            'trip_id': expense.trip_id,
+            'journey_id': expense.journey_id,
+            'leg_id': expense.leg_id,
+            'category_id': expense.category_id,
+            'date': expense.date,
+            'description': expense.description,
+            'amount_gbp': expense.amount_gbp,
+            'ex_vat_amount': expense.ex_vat_amount,
+            'vat_amount': expense.vat_amount,
+            'is_billable': expense.is_billable,
+            'is_monthly_expense': expense.is_monthly_expense,
+            'created_at': expense.created_at,
+            'updated_at': expense.updated_at,
+            'evidence_count': len(expense.evidence_links)
+        }
+        response_expenses.append(expense_dict)
+
+    return response_expenses
 
 @router.get("/{expense_id}", response_model=ExpenseItemResponse)
 def get_expense(expense_id: int, db: Session = Depends(get_db)):
@@ -113,6 +143,23 @@ def delete_expense(expense_id: int, db: Session = Depends(get_db)):
     db.delete(expense)
     db.commit()
     return {"message": "Expense deleted successfully"}
+
+@router.get("/{expense_id}/evidence", response_model=List[EvidenceItemResponse])
+def get_expense_evidence(expense_id: int, db: Session = Depends(get_db)):
+    """Get all evidence items linked to a specific expense"""
+    expense = db.query(ExpenseItem).filter(ExpenseItem.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Get evidence items through the expense_evidence_links table
+    evidence_items = db.query(EvidenceItem).join(
+        ExpenseEvidenceLink,
+        EvidenceItem.id == ExpenseEvidenceLink.evidence_item_id
+    ).filter(
+        ExpenseEvidenceLink.expense_item_id == expense_id
+    ).all()
+
+    return evidence_items
 
 @router.get("/reports/monthly")
 def get_monthly_report(month: int, year: int, db: Session = Depends(get_db)):

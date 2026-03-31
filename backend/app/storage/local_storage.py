@@ -25,7 +25,7 @@ class LocalStorage(StorageInterface):
 
         relative_path = str(file_path.relative_to(self.base_path))
 
-        return str(file_path), safe_filename
+        return relative_path, safe_filename
 
     def delete_file(self, file_path: str) -> bool:
         try:
