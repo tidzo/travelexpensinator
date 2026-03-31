@@ -25,8 +25,15 @@ class ExpenseService:
             expense_data.amount_gbp, category.vat_status
         )
 
+        # Convert to dict and check if this should be a monthly expense
+        expense_dict = expense_data.dict()
+
+        # If no trip, journey, or leg is specified, this should be a monthly expense
+        if not expense_dict.get('trip_id') and not expense_dict.get('journey_id') and not expense_dict.get('leg_id'):
+            expense_dict['is_monthly_expense'] = True
+
         expense = ExpenseItem(
-            **expense_data.dict(),
+            **expense_dict,
             ex_vat_amount=ex_vat_amount,
             vat_amount=vat_amount
         )
