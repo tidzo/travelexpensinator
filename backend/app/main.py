@@ -2,8 +2,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
+from app.core.database import engine, Base
 from app.api import trips, expenses, locations, files, reports
+# Import all models to ensure they're registered with Base
+from app.models import *
 import os
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
+
+# Initialize database with seed data
+from app.core.init_db import init_db
+init_db()
 
 app = FastAPI(title=settings.app_name)
 

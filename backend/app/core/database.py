@@ -3,6 +3,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
+# Ensure data directory exists for SQLite
+os.makedirs("data", exist_ok=True)
+
 SQLITE_DATABASE_URL = "sqlite:///./data/app.db"
 POSTGRES_DATABASE_URL = os.getenv("DATABASE_URL", SQLITE_DATABASE_URL)
 
