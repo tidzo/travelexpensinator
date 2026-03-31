@@ -251,9 +251,7 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
           formData.append('upload_date', new Date().toISOString().split('T')[0]);
           formData.append('description', `Evidence for leg ${legId} expense`);
 
-          const evidence = await api.post('/files/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          const evidence = await api.uploadFile('/files/upload', formData);
 
           await api.post('/expense-evidence-links', {
             expense_item_id: expense.id,
