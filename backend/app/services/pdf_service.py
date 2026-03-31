@@ -37,6 +37,15 @@ class PDFService:
             spaceBefore=6,
             spaceAfter=8,
         )
+        # Add style for wrapped descriptions in tables
+        self.description_style = ParagraphStyle(
+            'DescriptionStyle',
+            parent=self.styles['Normal'],
+            fontSize=9,
+            leading=11,
+            spaceAfter=0,
+            spaceBefore=0,
+        )
 
     def generate_monthly_report(self, report_data: Dict[str, Any]) -> BytesIO:
         buffer = BytesIO()
@@ -327,9 +336,16 @@ class PDFService:
 
         data = [['Date', 'Description', 'Net (ex VAT)', 'VAT', 'Gross (Paid)']]
         for expense in expenses:
+            # Wrap long descriptions in Paragraph for proper word wrapping
+            description_text = expense.description
+            if len(description_text) > 35:  # Roughly fits in 2 inches at font size 9
+                description_para = Paragraph(description_text, self.description_style)
+            else:
+                description_para = description_text
+
             data.append([
                 expense.date.strftime('%Y-%m-%d'),
-                expense.description,
+                description_para,
                 format_amount(expense.ex_vat_amount),
                 format_amount(expense.vat_amount),
                 f"£{expense.amount_gbp:.2f}"
@@ -345,7 +361,8 @@ class PDFService:
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP')  # Align content to top of cells
         ]))
 
         story_elements.append(table)
@@ -357,9 +374,16 @@ class PDFService:
 
         data = [['Date', 'Description', 'Net (ex VAT)', 'VAT', 'Gross (Paid)']]
         for expense in expenses:
+            # Wrap long descriptions in Paragraph for proper word wrapping
+            description_text = expense.description
+            if len(description_text) > 35:  # Roughly fits in 2 inches at font size 9
+                description_para = Paragraph(description_text, self.description_style)
+            else:
+                description_para = description_text
+
             data.append([
                 expense.date.strftime('%Y-%m-%d'),
-                expense.description,
+                description_para,
                 format_amount(expense.ex_vat_amount),
                 format_amount(expense.vat_amount),
                 f"£{expense.amount_gbp:.2f}"
@@ -375,7 +399,8 @@ class PDFService:
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP')  # Align content to top of cells
         ]))
 
         return table
