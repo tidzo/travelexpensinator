@@ -99,30 +99,36 @@ class PDFService:
         return buffer
 
     def _create_summary_table(self, totals: Dict[str, Decimal]) -> Table:
+        # Calculate net amounts (ex VAT)
+        standard_net = totals['standard_rated_gross'] - totals['standard_rated_vat']
+        zero_or_oos_net = totals['zero_rated'] + totals['out_of_scope']
+        total_net = standard_net + zero_or_oos_net
+        total_vat = totals['standard_rated_vat']
+        total_gross = totals['total_expenses']
+
+        # Helper function to format amounts (blank if zero)
+        def format_amount(amount):
+            return f"£{amount:.2f}" if amount > 0 else ""
+
         data = [
-            ['VAT Category', 'Amount'],
-            ['Standard Rated (Gross)', f"£{totals['standard_rated_gross']:.2f}"],
-            ['Standard Rated (VAT)', f"£{totals['standard_rated_vat']:.2f}"],
-            ['Zero Rated', f"£{totals['zero_rated']:.2f}"],
-            ['Out of Scope', f"£{totals['out_of_scope']:.2f}"],
-            ['', ''],
-            ['Total Expenses', f"£{totals['total_expenses']:.2f}"],
-            ['Billable Total', f"£{totals['billable_total']:.2f}"],
-            ['Non-Billable Total', f"£{totals['non_billable_total']:.2f}"],
+            ['Category', 'Net (ex VAT)', 'VAT', 'Gross (Paid)'],
+            ['Standard Rated', format_amount(standard_net), format_amount(totals['standard_rated_vat']), format_amount(totals['standard_rated_gross'])],
+            ['Zero-Rated or Out of Scope', format_amount(zero_or_oos_net), format_amount(0), format_amount(zero_or_oos_net)],
+            ['TOTAL', f"£{total_net:.2f}", format_amount(total_vat), f"£{total_gross:.2f}"],
         ]
 
-        table = Table(data, colWidths=[3*inch, 2*inch])
+        table = Table(data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),  # Category column left-aligned
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),  # Amount columns right-aligned
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header row bold
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),  # Total row bold
             ('FONTSIZE', (0, 0), (-1, -1), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
-            ('BACKGROUND', (0, -3), (-1, -1), colors.lightgrey),
-            ('FONTNAME', (0, -3), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, 1), (-1, -2), colors.beige),  # Data rows
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),  # Total row
             ('GRID', (0, 0), (-1, -1), 1, colors.black)
         ]))
 
@@ -134,20 +140,25 @@ class PDFService:
 
         trip_title = f"Trip {trip.id} ({trip.start_date} to {trip.end_date})"
 
-        data = [['Date', 'Description', 'Amount']]
+        def format_amount(amount):
+            return f"£{amount:.2f}" if amount > 0 else ""
+
+        data = [['Date', 'Description', 'Net (ex VAT)', 'VAT', 'Gross (Paid)']]
         for expense in expenses:
             data.append([
                 expense.date.strftime('%Y-%m-%d'),
                 expense.description,
+                format_amount(expense.ex_vat_amount),
+                format_amount(expense.vat_amount),
                 f"£{expense.amount_gbp:.2f}"
             ])
 
-        table = Table(data, colWidths=[1.5*inch, 3*inch, 1.5*inch])
+        table = Table(data, colWidths=[1*inch, 2*inch, 1*inch, 1*inch, 1*inch])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+            ('ALIGN', (0, 0), (1, -1), 'LEFT'),
+            ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
@@ -158,20 +169,25 @@ class PDFService:
         return table
 
     def _create_expense_table(self, expenses: List[ExpenseItem]) -> Table:
-        data = [['Date', 'Description', 'Amount']]
+        def format_amount(amount):
+            return f"£{amount:.2f}" if amount > 0 else ""
+
+        data = [['Date', 'Description', 'Net (ex VAT)', 'VAT', 'Gross (Paid)']]
         for expense in expenses:
             data.append([
                 expense.date.strftime('%Y-%m-%d'),
                 expense.description,
+                format_amount(expense.ex_vat_amount),
+                format_amount(expense.vat_amount),
                 f"£{expense.amount_gbp:.2f}"
             ])
 
-        table = Table(data, colWidths=[1.5*inch, 3*inch, 1.5*inch])
+        table = Table(data, colWidths=[1*inch, 2*inch, 1*inch, 1*inch, 1*inch])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+            ('ALIGN', (0, 0), (1, -1), 'LEFT'),
+            ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),

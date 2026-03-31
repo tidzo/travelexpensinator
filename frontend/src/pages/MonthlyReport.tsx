@@ -51,6 +51,10 @@ function MonthlyReport() {
     }).format(amount);
   };
 
+  const formatCurrencyOrBlank = (amount: number) => {
+    return amount > 0 ? formatCurrency(amount) : '';
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
@@ -145,29 +149,29 @@ function MonthlyReport() {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>VAT Category</TableCell>
-                      <TableCell align="right">Amount</TableCell>
+                      <TableCell>Category</TableCell>
+                      <TableCell align="right">Net (ex VAT)</TableCell>
+                      <TableCell align="right">VAT</TableCell>
+                      <TableCell align="right">Gross (Paid)</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     <TableRow>
-                      <TableCell>Standard Rated (Gross)</TableCell>
-                      <TableCell align="right">{formatCurrency(report.totals.standard_rated_gross)}</TableCell>
+                      <TableCell>Standard Rated</TableCell>
+                      <TableCell align="right">{formatCurrencyOrBlank(report.totals.standard_rated_gross - report.totals.standard_rated_vat)}</TableCell>
+                      <TableCell align="right">{formatCurrencyOrBlank(report.totals.standard_rated_vat)}</TableCell>
+                      <TableCell align="right">{formatCurrencyOrBlank(report.totals.standard_rated_gross)}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>Standard Rated (VAT)</TableCell>
-                      <TableCell align="right">{formatCurrency(report.totals.standard_rated_vat)}</TableCell>
+                      <TableCell>Zero-Rated or Out of Scope</TableCell>
+                      <TableCell align="right">{formatCurrencyOrBlank(report.totals.zero_rated + report.totals.out_of_scope)}</TableCell>
+                      <TableCell align="right">{formatCurrencyOrBlank(0)}</TableCell>
+                      <TableCell align="right">{formatCurrencyOrBlank(report.totals.zero_rated + report.totals.out_of_scope)}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>Zero Rated</TableCell>
-                      <TableCell align="right">{formatCurrency(report.totals.zero_rated)}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Out of Scope</TableCell>
-                      <TableCell align="right">{formatCurrency(report.totals.out_of_scope)}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Total Expenses</strong></TableCell>
+                      <TableCell><strong>TOTAL</strong></TableCell>
+                      <TableCell align="right"><strong>{formatCurrency((report.totals.standard_rated_gross - report.totals.standard_rated_vat) + (report.totals.zero_rated + report.totals.out_of_scope))}</strong></TableCell>
+                      <TableCell align="right"><strong>{formatCurrencyOrBlank(report.totals.standard_rated_vat)}</strong></TableCell>
                       <TableCell align="right"><strong>{formatCurrency(report.totals.total_expenses)}</strong></TableCell>
                     </TableRow>
                   </TableBody>
@@ -202,7 +206,9 @@ function MonthlyReport() {
                           <TableRow>
                             <TableCell>Date</TableCell>
                             <TableCell>Description</TableCell>
-                            <TableCell align="right">Amount</TableCell>
+                            <TableCell align="right">Net (ex VAT)</TableCell>
+                            <TableCell align="right">VAT</TableCell>
+                            <TableCell align="right">Gross (Paid)</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -210,6 +216,8 @@ function MonthlyReport() {
                             <TableRow key={expense.id}>
                               <TableCell>{formatDate(expense.date)}</TableCell>
                               <TableCell>{expense.description}</TableCell>
+                              <TableCell align="right">{formatCurrencyOrBlank(expense.ex_vat_amount)}</TableCell>
+                              <TableCell align="right">{formatCurrencyOrBlank(expense.vat_amount)}</TableCell>
                               <TableCell align="right">{formatCurrency(expense.amount_gbp)}</TableCell>
                             </TableRow>
                           ))}
@@ -235,7 +243,9 @@ function MonthlyReport() {
                       <TableRow>
                         <TableCell>Date</TableCell>
                         <TableCell>Description</TableCell>
-                        <TableCell align="right">Amount</TableCell>
+                        <TableCell align="right">Net (ex VAT)</TableCell>
+                        <TableCell align="right">VAT</TableCell>
+                        <TableCell align="right">Gross (Paid)</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -243,6 +253,8 @@ function MonthlyReport() {
                         <TableRow key={expense.id}>
                           <TableCell>{formatDate(expense.date)}</TableCell>
                           <TableCell>{expense.description}</TableCell>
+                          <TableCell align="right">{formatCurrencyOrBlank(expense.ex_vat_amount)}</TableCell>
+                          <TableCell align="right">{formatCurrencyOrBlank(expense.vat_amount)}</TableCell>
                           <TableCell align="right">{formatCurrency(expense.amount_gbp)}</TableCell>
                         </TableRow>
                       ))}
