@@ -28,17 +28,17 @@ import {
   FlagOutlined,
   Receipt,
 } from '@mui/icons-material';
-import { Leg, Location } from '../types';
+import { Leg, Location, ExpenseItem } from '../types';
 import { api } from '../services/api';
 
 interface LegsListProps {
   journeyId: number;
   locations: Location[];
-  onCreateExpenseFromLeg?: (leg: Leg) => void;
 }
 
-function LegsList({ journeyId, locations, onCreateExpenseFromLeg }: LegsListProps) {
+function LegsList({ journeyId, locations }: LegsListProps) {
   const [legs, setLegs] = useState<Leg[]>([]);
+  const [legExpenses, setLegExpenses] = useState<Record<number, ExpenseItem>>({});
   const [loading, setLoading] = useState(true);
   const [legDialogOpen, setLegDialogOpen] = useState(false);
   const [editingLeg, setEditingLeg] = useState<Leg | null>(null);
@@ -47,32 +47,97 @@ function LegsList({ journeyId, locations, onCreateExpenseFromLeg }: LegsListProp
     mode_of_transport: 'TRAIN' as Leg['mode_of_transport'],
     origin_location_id: 0,
     destination_location_id: 0,
-    notes: ''
+    notes: '',
+    expense_amount: ''
   });
 
-  const loadLegs = async () => {
+  const loadData = async () => {
     try {
-      const data = await api.get<Leg[]>(`/legs?journey_id=${journeyId}`);
-      setLegs(data);
+      const [legsData, expensesData] = await Promise.all([
+        api.get<Leg[]>(`/legs?journey_id=${journeyId}`),
+        api.get<ExpenseItem[]>(`/expenses?journey_id=${journeyId}`)
+      ]);
+
+      setLegs(legsData);
+
+      // Create a map of leg expenses
+      const expenseMap: Record<number, ExpenseItem> = {};
+      expensesData.forEach(expense => {
+        if (expense.leg_id) {
+          expenseMap[expense.leg_id] = expense;
+        }
+      });
+      console.log('Loaded expenses for journey:', journeyId, 'Expense map:', expenseMap);
+      setLegExpenses(expenseMap);
     } catch (error) {
-      console.error('Failed to load legs:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadLegs();
+    loadData();
   }, [journeyId]);
 
   const handleCreateLeg = async () => {
     try {
       if (editingLeg) {
-        const updatedLeg = await api.put<Leg>(`/legs/${editingLeg.id}`, newLeg);
+        // Update the leg
+        const updatedLeg = await api.put<Leg>(`/legs/${editingLeg.id}`, {
+          journey_id: newLeg.journey_id,
+          mode_of_transport: newLeg.mode_of_transport,
+          origin_location_id: newLeg.origin_location_id,
+          destination_location_id: newLeg.destination_location_id,
+          notes: newLeg.notes
+        });
         setLegs(legs.map(leg => leg.id === editingLeg.id ? updatedLeg : leg));
+
+        // Update the associated expense amount if provided
+        const expense = legExpenses[editingLeg.id];
+        console.log('Updating expense for leg:', editingLeg.id, 'Expense:', expense, 'New amount:', newLeg.expense_amount);
+
+        if (expense) {
+          const updatedExpense = await api.put<ExpenseItem>(`/expenses/${expense.id}`, {
+            amount_gbp: newLeg.expense_amount !== '' ? parseFloat(newLeg.expense_amount) : 0
+          });
+          console.log('Expense update response:', updatedExpense);
+
+          setLegExpenses(prev => ({
+            ...prev,
+            [editingLeg.id]: updatedExpense
+          }));
+        }
       } else {
-        const leg = await api.post<Leg>('/legs', newLeg);
+        // Create new leg (will automatically create expense)
+        const leg = await api.post<Leg>('/legs', {
+          journey_id: newLeg.journey_id,
+          mode_of_transport: newLeg.mode_of_transport,
+          origin_location_id: newLeg.origin_location_id,
+          destination_location_id: newLeg.destination_location_id,
+          notes: newLeg.notes
+        });
         setLegs([...legs, leg]);
+
+        // Wait a moment for the expense to be created, then reload data
+        setTimeout(() => {
+          loadData();
+        }, 500);
+
+        // If user specified an amount, update the expense
+        if (newLeg.expense_amount !== '') {
+          setTimeout(async () => {
+            await loadData();
+            const expenses = await api.get<ExpenseItem[]>(`/expenses?journey_id=${journeyId}`);
+            const legExpense = expenses.find(exp => exp.leg_id === leg.id);
+            if (legExpense) {
+              await api.put<ExpenseItem>(`/expenses/${legExpense.id}`, {
+                amount_gbp: parseFloat(newLeg.expense_amount)
+              });
+              loadData();
+            }
+          }, 1000);
+        }
       }
       handleCloseLegDialog();
     } catch (error) {
@@ -82,12 +147,14 @@ function LegsList({ journeyId, locations, onCreateExpenseFromLeg }: LegsListProp
 
   const handleEditLeg = (leg: Leg) => {
     setEditingLeg(leg);
+    const expense = legExpenses[leg.id];
     setNewLeg({
       journey_id: leg.journey_id,
       mode_of_transport: leg.mode_of_transport,
       origin_location_id: leg.origin_location_id,
       destination_location_id: leg.destination_location_id,
-      notes: leg.notes || ''
+      notes: leg.notes || '',
+      expense_amount: expense ? expense.amount_gbp.toString() : ''
     });
     setLegDialogOpen(true);
   };
@@ -100,7 +167,8 @@ function LegsList({ journeyId, locations, onCreateExpenseFromLeg }: LegsListProp
       mode_of_transport: 'TRAIN',
       origin_location_id: 0,
       destination_location_id: 0,
-      notes: ''
+      notes: '',
+      expense_amount: ''
     });
   };
 
@@ -147,6 +215,14 @@ function LegsList({ journeyId, locations, onCreateExpenseFromLeg }: LegsListProp
     const location = locations.find(loc => loc.id === locationId);
     return location ? location.name : `Location ${locationId}`;
   };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'GBP'
+    }).format(amount);
+  };
+
 
   if (loading) {
     return <Typography variant="body2">Loading transport legs...</Typography>;
@@ -205,17 +281,21 @@ function LegsList({ journeyId, locations, onCreateExpenseFromLeg }: LegsListProp
                         {leg.notes}
                       </Typography>
                     )}
-                    {onCreateExpenseFromLeg && (
-                      <Button
-                        variant="text"
-                        size="small"
-                        startIcon={<Receipt />}
-                        onClick={() => onCreateExpenseFromLeg(leg)}
-                        sx={{ mt: 1 }}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                      <Typography variant="body2" sx={{ mr: 1 }}>
+                        Cost:
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        fontWeight="bold"
+                        color={legExpenses[leg.id]?.amount_gbp > 0 ? 'primary' : 'text.secondary'}
                       >
-                        Add Leg Expense
-                      </Button>
-                    )}
+                        {legExpenses[leg.id]
+                          ? formatCurrency(legExpenses[leg.id].amount_gbp)
+                          : '£0.00'
+                        }
+                      </Typography>
+                    </Box>
                   </Box>
                 </Box>
               </ListItem>
@@ -285,6 +365,18 @@ function LegsList({ journeyId, locations, onCreateExpenseFromLeg }: LegsListProp
               ))}
             </Select>
           </FormControl>
+
+          <TextField
+            margin="dense"
+            label="Cost (GBP)"
+            type="number"
+            step="0.01"
+            fullWidth
+            variant="outlined"
+            value={newLeg.expense_amount}
+            onChange={(e) => setNewLeg({ ...newLeg, expense_amount: e.target.value })}
+            sx={{ mb: 2 }}
+          />
 
           <TextField
             margin="dense"

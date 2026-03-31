@@ -22,6 +22,7 @@ def create_expense(expense: ExpenseItemCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=List[ExpenseItemResponse])
 def list_expenses(
     trip_id: Optional[int] = Query(None),
+    journey_id: Optional[int] = Query(None),
     month: Optional[int] = Query(None),
     year: Optional[int] = Query(None),
     db: Session = Depends(get_db)
@@ -30,6 +31,9 @@ def list_expenses(
 
     if trip_id:
         query = query.filter(ExpenseItem.trip_id == trip_id)
+
+    if journey_id:
+        query = query.filter(ExpenseItem.journey_id == journey_id)
 
     if month and year:
         from sqlalchemy import extract

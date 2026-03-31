@@ -54,7 +54,7 @@ function TripDetail() {
   });
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseParentContext, setExpenseParentContext] = useState<{
-    type: 'trip' | 'journey' | 'leg';
+    type: 'trip' | 'journey';
     id: number;
     date: string;
     categoryId?: number;
@@ -157,16 +157,6 @@ function TripDetail() {
     setExpenseDialogOpen(true);
   };
 
-  const handleCreateExpenseFromLeg = (leg: Leg, journeyDate: string) => {
-    const travelCategory = categories.find(cat => cat.name === 'Travel');
-    setExpenseParentContext({
-      type: 'leg',
-      id: leg.id,
-      date: journeyDate,
-      categoryId: travelCategory?.id
-    });
-    setExpenseDialogOpen(true);
-  };
 
   if (loading) {
     return <Typography>Loading trip details...</Typography>;
@@ -276,7 +266,6 @@ function TripDetail() {
                 <LegsList
                   journeyId={journey.id}
                   locations={locations}
-                  onCreateExpenseFromLeg={(leg) => handleCreateExpenseFromLeg(leg, journey.date)}
                 />
               </AccordionDetails>
             </Accordion>
@@ -343,8 +332,7 @@ function TripDetail() {
           date: expenseParentContext.date,
           categoryId: expenseParentContext.categoryId,
           tripId: expenseParentContext.type === 'trip' ? expenseParentContext.id : trip?.id,
-          journeyId: expenseParentContext.type === 'journey' ? expenseParentContext.id : undefined,
-          legId: expenseParentContext.type === 'leg' ? expenseParentContext.id : undefined
+          journeyId: expenseParentContext.type === 'journey' ? expenseParentContext.id : undefined
         } : undefined}
         onExpenseCreated={() => {
           // Could reload trip data or show a success message
