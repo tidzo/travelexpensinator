@@ -15,13 +15,11 @@ def init_db():
 
         # Create default expense categories
         categories = [
-            ExpenseCategory(name="Train", vat_status=VATStatus.STANDARD),
-            ExpenseCategory(name="Tube", vat_status=VATStatus.STANDARD),
-            ExpenseCategory(name="Taxi", vat_status=VATStatus.STANDARD),
-            ExpenseCategory(name="Hotel", vat_status=VATStatus.STANDARD),
-            ExpenseCategory(name="Meal", vat_status=VATStatus.STANDARD),
+            ExpenseCategory(name="Travel", vat_status=VATStatus.ZERO_RATED),
+            ExpenseCategory(name="Accommodation", vat_status=VATStatus.STANDARD),
+            ExpenseCategory(name="Subsistence", vat_status=VATStatus.STANDARD),
             ExpenseCategory(
-                name="Incidental Overnight Expenses",
+                name="Incidentals",
                 vat_status=VATStatus.OUT_OF_SCOPE,
                 default_amount=Decimal("5.00")
             ),

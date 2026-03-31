@@ -15,7 +15,8 @@
       "Bash(docker-compose cp backend:/app/data/app.db ./data/app.db)",
       "Bash(docker-compose up -d)",
       "Bash(docker-compose up -d --remove-orphans)",
-      "Bash(docker-compose logs frontend --tail=20)"
+      "Bash(docker-compose logs frontend --tail=20)",
+      "Bash(cat /Users/matt/travelexpensinator/backend/app/api/__init__.py)"
     ],
     "deny": [],
     "ask": []

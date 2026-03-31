@@ -22,7 +22,7 @@ import {
   TextField,
 } from '@mui/material';
 import { Add, Edit, Delete, AttachFile } from '@mui/icons-material';
-import { ExpenseItem, Trip, Journey, Leg, Location } from '../types';
+import { ExpenseItem, Trip, Journey, Leg, Location, ExpenseCategory } from '../types';
 import { api } from '../services/api';
 
 function ExpensesList() {
@@ -31,6 +31,7 @@ function ExpensesList() {
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [legs, setLegs] = useState<Leg[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
@@ -49,18 +50,20 @@ function ExpensesList() {
 
   const loadData = async () => {
     try {
-      const [expensesData, tripsData, journeysData, legsData, locationsData] = await Promise.all([
+      const [expensesData, tripsData, journeysData, legsData, locationsData, categoriesData] = await Promise.all([
         api.get<ExpenseItem[]>(`/expenses?month=${filterMonth}&year=${filterYear}`),
         api.get<Trip[]>('/trips'),
         api.get<Journey[]>('/journeys'),
         api.get<Leg[]>('/legs'),
-        api.get<Location[]>('/locations')
+        api.get<Location[]>('/locations'),
+        api.get<ExpenseCategory[]>('/expense-categories')
       ]);
       setExpenses(expensesData);
       setTrips(tripsData);
       setJourneys(journeysData);
       setLegs(legsData);
       setLocations(locationsData);
+      setCategories(categoriesData);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -313,6 +316,22 @@ function ExpensesList() {
             onChange={(e) => setNewExpense({ ...newExpense, amount_gbp: e.target.value })}
             sx={{ mb: 2 }}
           />
+
+          <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={newExpense.category_id}
+              onChange={(e) => setNewExpense({ ...newExpense, category_id: Number(e.target.value) })}
+              label="Category"
+            >
+              {categories.map((category) => (
+                <MenuItem key={category.id} value={category.id}>
+                  {category.name} ({category.vat_status})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
           <TextField
             margin="dense"
             label="Date"
