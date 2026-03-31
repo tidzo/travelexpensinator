@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(docker-compose exec backend python -c \"\nfrom app.core.database import SessionLocal\nfrom app.models.expense_item import ExpenseItem\nfrom app.models.expense_category import ExpenseCategory\n\ndb = SessionLocal()\n\n# Find the Incidentals category\nincidentals_cat = db.query(ExpenseCategory).filter(ExpenseCategory.name == ''Incidentals'').first()\n\n# Update all existing overnight expenses to have the new description\novernight_expenses = db.query(ExpenseItem).filter(\n    ExpenseItem.category_id == incidentals_cat.id,\n    ExpenseItem.description.like(''Overnight incidentals for%'')\n).all()\n\nprint(f''Updating {len(overnight_expenses)} overnight expenses...'')\n\nfor expense in overnight_expenses:\n    print(f''  Updating expense {expense.id}: {expense.description} -> Incidental Overnight Expenses'')\n    expense.description = ''Incidental Overnight Expenses''\n\ndb.commit()\nprint(''Update complete!'')\n\ndb.close()\n\")"
+      "Bash(docker-compose exec backend python -c \"\nfrom app.core.database import SessionLocal\nfrom app.models.expense_item import ExpenseItem\nfrom app.models.expense_category import ExpenseCategory\n\ndb = SessionLocal()\n\n# Get a sample expense to see its structure\nexpense = db.query(ExpenseItem).first()\nif expense:\n    print(f''Expense ID: {expense.id}'')\n    print(f''Description: {expense.description}'')\n    print(f''Evidence count attribute exists: {hasattr(expense, \"\"evidence_count\"\")}'')\n    \n    # Check if it has evidence_links\n    print(f''Evidence links count: {len(expense.evidence_links) if expense.evidence_links else 0}'')\n\ndb.close()\n\")"
     ],
     "deny": [],
     "ask": []

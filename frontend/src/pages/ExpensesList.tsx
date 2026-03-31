@@ -150,9 +150,6 @@ function ExpensesList() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getBillableChipColor = (isBillable: boolean) => {
-    return isBillable ? 'success' : 'warning';
-  };
 
   const handleViewEvidence = async (expenseId: number) => {
     try {
@@ -477,9 +474,10 @@ function ExpensesList() {
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                         <Chip
-                          label={expense.is_billable ? 'Billable' : 'Non-billable'}
+                          label={categories.find(c => c.id === expense.category_id)?.name || 'Unknown Category'}
                           size="small"
-                          color={getBillableChipColor(expense.is_billable)}
+                          color="default"
+                          variant="outlined"
                         />
                         {expense.vat_amount > 0 && (
                           <Chip
@@ -488,7 +486,7 @@ function ExpensesList() {
                             variant="outlined"
                           />
                         )}
-                        {expense.evidence_count && expense.evidence_count > 0 && (
+                        {expense.evidence_count > 0 && (
                           <Chip
                             icon={<AttachmentOutlined />}
                             label={`${expense.evidence_count} evidence`}
@@ -656,17 +654,6 @@ function ExpensesList() {
             </FormControl>
           )}
 
-          <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
-            <InputLabel>Billable</InputLabel>
-            <Select
-              value={newExpense.is_billable}
-              onChange={(e) => setNewExpense({ ...newExpense, is_billable: e.target.value as boolean })}
-              label="Billable"
-            >
-              <MenuItem value={true}>Yes</MenuItem>
-              <MenuItem value={false}>No</MenuItem>
-            </Select>
-          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
