@@ -97,10 +97,18 @@ class ExpenseService:
 
         totals = self._calculate_totals(expenses)
 
+        # Sort trip expenses by trip start date (ascending - earliest first)
+        trip_expenses = list(grouped_by_trip.values())
+        trip_expenses.sort(key=lambda x: x["trip"].start_date, reverse=False)
+
+        # Sort expenses within each trip by date (ascending - earliest first)
+        for trip_group in trip_expenses:
+            trip_group["expenses"].sort(key=lambda x: x.date, reverse=False)
+
         return {
             "month": month,
             "year": year,
-            "trip_expenses": list(grouped_by_trip.values()),
+            "trip_expenses": trip_expenses,
             "unlinked_expenses": unlinked_expenses,
             "totals": totals
         }

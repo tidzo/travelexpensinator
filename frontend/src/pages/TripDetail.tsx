@@ -365,7 +365,9 @@ function TripDetail() {
         </Card>
       ) : (
         <Box>
-          {journeys.map((journey) => (
+          {journeys
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .map((journey) => (
             <Accordion key={journey.id} sx={{ mb: 1 }}>
               <AccordionSummary expandIcon={<ExpandMore />}>
                 <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -440,7 +442,9 @@ function TripDetail() {
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <List>
-                {tripOnlyExpenses.map((expense) => (
+                {tripOnlyExpenses
+                  .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                  .map((expense) => (
                   <ListItem
                     key={expense.id}
                     secondaryAction={

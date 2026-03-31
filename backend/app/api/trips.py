@@ -44,7 +44,7 @@ def list_trips(
             )
         )
 
-    return query.all()
+    return query.order_by(Trip.start_date.asc()).all()
 
 @router.get("/{trip_id}", response_model=TripResponse)
 def get_trip(trip_id: int, db: Session = Depends(get_db)):
