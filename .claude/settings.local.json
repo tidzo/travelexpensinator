@@ -10,7 +10,11 @@
       "Bash(docker-compose restart backend)",
       "Bash(docker-compose logs backend --tail=10)",
       "Bash(docker-compose logs backend --tail=30)",
-      "Bash(docker-compose logs backend --tail=5)"
+      "Bash(docker-compose logs backend --tail=5)",
+      "Bash(docker-compose exec backend ls -la /app/data/)",
+      "Bash(docker-compose cp backend:/app/data/app.db ./data/app.db)",
+      "Bash(docker-compose up -d)",
+      "Bash(docker-compose up -d --remove-orphans)"
     ],
     "deny": [],
     "ask": []

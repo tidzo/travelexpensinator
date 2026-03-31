@@ -8,10 +8,9 @@ services:
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads
+      - ./data:/app/data
     environment:
       - DATABASE_URL=sqlite:///./data/app.db
-    depends_on:
-      - db
 
   frontend:
     build:
@@ -25,16 +24,18 @@ services:
     environment:
       - VITE_API_URL=http://localhost:8000
 
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: travelexpenses
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+# PostgreSQL removed - using SQLite for simplicity
+# Can be re-enabled later by uncommenting and updating DATABASE_URL
+#  db:
+#    image: postgres:15
+#    environment:
+#      POSTGRES_DB: travelexpenses
+#      POSTGRES_USER: postgres
+#      POSTGRES_PASSWORD: postgres
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
 
-volumes:
-  postgres_data:
+#volumes:
+#  postgres_data:

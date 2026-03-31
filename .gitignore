@@ -51,7 +51,7 @@ htmlcov/
 *.db
 *.sqlite
 *.sqlite3
-data/
+data/app.db
 test.db
 
 # Node.js / React
