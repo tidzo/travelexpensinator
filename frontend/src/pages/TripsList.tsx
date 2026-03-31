@@ -20,8 +20,10 @@ import {
 import { Add, Edit, Delete } from '@mui/icons-material';
 import { Trip } from '../types';
 import { api } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 function TripsList() {
+  const navigate = useNavigate();
   const [allTrips, setAllTrips] = useState<Trip[]>([]);
   const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,12 +166,17 @@ function TripsList() {
           {filteredTrips.map((trip) => (
             <Card key={trip.id} sx={{ mb: 2 }}>
               <ListItem
+                onClick={() => navigate(`/trips/${trip.id}`)}
+                sx={{ cursor: 'pointer' }}
                 secondaryAction={
                   <Box>
                     <IconButton
                       edge="end"
                       aria-label="edit"
-                      onClick={() => handleEditTrip(trip)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditTrip(trip);
+                      }}
                       sx={{ mr: 1 }}
                     >
                       <Edit />
@@ -177,7 +184,10 @@ function TripsList() {
                     <IconButton
                       edge="end"
                       aria-label="delete"
-                      onClick={() => deleteTrip(trip.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteTrip(trip.id);
+                      }}
                     >
                       <Delete />
                     </IconButton>

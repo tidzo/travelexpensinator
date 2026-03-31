@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Container, AppBar, Toolbar, Typography, Box } from '@mui/material';
 import TripsList from './pages/TripsList';
+import TripDetail from './pages/TripDetail';
 import ExpensesList from './pages/ExpensesList';
 import MonthlyReport from './pages/MonthlyReport';
 import LocationsList from './pages/LocationsList';
@@ -23,6 +24,7 @@ function App() {
         <Routes>
           <Route path="/" element={<TripsList />} />
           <Route path="/trips" element={<TripsList />} />
+          <Route path="/trips/:tripId" element={<TripDetail />} />
           <Route path="/expenses" element={<ExpensesList />} />
           <Route path="/locations" element={<LocationsList />} />
           <Route path="/reports" element={<MonthlyReport />} />

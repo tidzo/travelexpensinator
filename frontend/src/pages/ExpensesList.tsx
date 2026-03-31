@@ -22,11 +22,14 @@ import {
   TextField,
 } from '@mui/material';
 import { Add, Edit, Delete, AttachFile } from '@mui/icons-material';
-import { ExpenseItem } from '../types';
+import { ExpenseItem, Trip, Journey, Leg } from '../types';
 import { api } from '../services/api';
 
 function ExpensesList() {
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [journeys, setJourneys] = useState<Journey[]>([]);
+  const [legs, setLegs] = useState<Leg[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
@@ -37,22 +40,33 @@ function ExpensesList() {
     date: new Date().toISOString().split('T')[0],
     description: '',
     amount_gbp: '',
-    is_billable: true
+    is_billable: true,
+    trip_id: undefined as number | undefined,
+    journey_id: undefined as number | undefined,
+    leg_id: undefined as number | undefined
   });
 
-  const loadExpenses = async () => {
+  const loadData = async () => {
     try {
-      const data = await api.get<ExpenseItem[]>(`/expenses?month=${filterMonth}&year=${filterYear}`);
-      setExpenses(data);
+      const [expensesData, tripsData, journeysData, legsData] = await Promise.all([
+        api.get<ExpenseItem[]>(`/expenses?month=${filterMonth}&year=${filterYear}`),
+        api.get<Trip[]>('/trips'),
+        api.get<Journey[]>('/journeys'),
+        api.get<Leg[]>('/legs')
+      ]);
+      setExpenses(expensesData);
+      setTrips(tripsData);
+      setJourneys(journeysData);
+      setLegs(legsData);
     } catch (error) {
-      console.error('Failed to load expenses:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadExpenses();
+    loadData();
   }, [filterMonth, filterYear]);
 
   const deleteExpense = async (expenseId: number) => {
@@ -116,7 +130,10 @@ function ExpensesList() {
       date: expense.date,
       description: expense.description,
       amount_gbp: expense.amount_gbp.toString(),
-      is_billable: expense.is_billable
+      is_billable: expense.is_billable,
+      trip_id: expense.trip_id,
+      journey_id: expense.journey_id,
+      leg_id: expense.leg_id
     });
     setDialogOpen(true);
   };
@@ -129,7 +146,10 @@ function ExpensesList() {
       date: new Date().toISOString().split('T')[0],
       description: '',
       amount_gbp: '',
-      is_billable: true
+      is_billable: true,
+      trip_id: undefined,
+      journey_id: undefined,
+      leg_id: undefined
     });
   };
 
@@ -301,6 +321,78 @@ function ExpensesList() {
             InputLabelProps={{ shrink: true }}
             sx={{ mb: 2 }}
           />
+
+          <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
+            <InputLabel>Trip (Optional)</InputLabel>
+            <Select
+              value={newExpense.trip_id || ''}
+              onChange={(e) => {
+                const tripId = e.target.value as number | undefined;
+                setNewExpense({
+                  ...newExpense,
+                  trip_id: tripId,
+                  journey_id: undefined,
+                  leg_id: undefined
+                });
+              }}
+              label="Trip (Optional)"
+            >
+              <MenuItem value="">None</MenuItem>
+              {trips.map((trip) => (
+                <MenuItem key={trip.id} value={trip.id}>
+                  Trip {trip.id} ({trip.start_date} - {trip.end_date})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {newExpense.trip_id && (
+            <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
+              <InputLabel>Journey (Optional)</InputLabel>
+              <Select
+                value={newExpense.journey_id || ''}
+                onChange={(e) => {
+                  const journeyId = e.target.value as number | undefined;
+                  setNewExpense({
+                    ...newExpense,
+                    journey_id: journeyId,
+                    leg_id: undefined
+                  });
+                }}
+                label="Journey (Optional)"
+              >
+                <MenuItem value="">None</MenuItem>
+                {journeys
+                  .filter(journey => journey.trip_id === newExpense.trip_id)
+                  .map((journey) => (
+                    <MenuItem key={journey.id} value={journey.id}>
+                      {journey.date} - {journey.description || 'Journey'}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+          )}
+
+          {newExpense.journey_id && (
+            <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
+              <InputLabel>Transport Leg (Optional)</InputLabel>
+              <Select
+                value={newExpense.leg_id || ''}
+                onChange={(e) => setNewExpense({ ...newExpense, leg_id: e.target.value as number | undefined })}
+                label="Transport Leg (Optional)"
+              >
+                <MenuItem value="">None</MenuItem>
+                {legs
+                  .filter(leg => leg.journey_id === newExpense.journey_id)
+                  .map((leg) => (
+                    <MenuItem key={leg.id} value={leg.id}>
+                      {leg.mode_of_transport}: {leg.origin_location?.name} → {leg.destination_location?.name}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+          )}
+
           <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
             <InputLabel>Billable</InputLabel>
             <Select
