@@ -17,8 +17,8 @@ import {
   Button,
   TextField,
 } from '@mui/material';
-import { Add, Edit, Delete, DirectionsTransit, Receipt } from '@mui/icons-material';
-import { Trip, ExpenseCategory } from '../types';
+import { Add, Edit, Delete, DirectionsTransit, Receipt, AttachFile, Link } from '@mui/icons-material';
+import { Trip, ExpenseCategory, ExpenseItem } from '../types';
 import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useDateContext } from '../contexts/DateContext';
@@ -28,6 +28,7 @@ function TripsList() {
   const navigate = useNavigate();
   const { selectedMonth, selectedYear } = useDateContext();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -38,14 +39,17 @@ function TripsList() {
     notes: ''
   });
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
 
   const loadData = async () => {
     try {
-      const [tripsData, categoriesData] = await Promise.all([
+      const [tripsData, expensesData, categoriesData] = await Promise.all([
         api.get<Trip[]>(`/trips?month=${selectedMonth}&year=${selectedYear}`),
+        api.get<ExpenseItem[]>(`/expenses?month=${selectedMonth}&year=${selectedYear}`),
         api.get<ExpenseCategory[]>('/expense-categories')
       ]);
       setTrips(tripsData);
+      setExpenses(expensesData.filter(expense => !expense.trip_id)); // Only unlinked expenses
       setCategories(categoriesData);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -143,6 +147,73 @@ function TripsList() {
     setNewTrip({ start_date: '', end_date: '', notes: '' });
   };
 
+  const handleFileUpload = async (expenseId: number) => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*,application/pdf';
+
+    fileInput.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (file) {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('upload_date', new Date().toISOString().split('T')[0]);
+          formData.append('description', `Evidence for expense ${expenseId}`);
+
+          const evidence = await api.uploadFile('/files/upload', formData);
+
+          await api.post('/expense-evidence-links', {
+            expense_item_id: expenseId,
+            evidence_item_id: evidence.id
+          });
+
+          loadData(); // Refresh data
+        } catch (error) {
+          console.error('Failed to upload file:', error);
+          alert('Failed to upload file');
+        }
+      }
+    };
+    fileInput.click();
+  };
+
+  const handleEditExpense = (expense: ExpenseItem) => {
+    setEditingExpense(expense);
+    setExpenseDialogOpen(true);
+  };
+
+  const deleteExpense = async (expenseId: number) => {
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      try {
+        await api.delete(`/expenses/${expenseId}`);
+        loadData(); // Refresh data
+      } catch (error) {
+        console.error('Failed to delete expense:', error);
+        alert('Failed to delete expense');
+      }
+    }
+  };
+
+  const getCategoryIcon = (categoryName: string) => {
+    if (categoryName.toLowerCase().includes('transport') ||
+        categoryName.toLowerCase().includes('travel') ||
+        categoryName.toLowerCase().includes('fuel') ||
+        categoryName.toLowerCase().includes('parking') ||
+        categoryName.toLowerCase().includes('taxi') ||
+        categoryName.toLowerCase().includes('train') ||
+        categoryName.toLowerCase().includes('flight')) {
+      return <DirectionsTransit sx={{ mr: 2, color: 'text.secondary' }} />;
+    }
+    if (categoryName.toLowerCase().includes('meal') ||
+        categoryName.toLowerCase().includes('food') ||
+        categoryName.toLowerCase().includes('restaurant') ||
+        categoryName.toLowerCase().includes('dining')) {
+      return <Receipt sx={{ mr: 2, color: 'text.secondary' }} />;
+    }
+    return <Receipt sx={{ mr: 2, color: 'text.secondary' }} />;
+  };
+
   if (loading) {
     return <Typography>Loading trips...</Typography>;
   }
@@ -150,7 +221,7 @@ function TripsList() {
   return (
     <Box sx={{ pb: 8 }}>
       <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-        Trips in {getMonthName(selectedMonth)} {selectedYear}
+        Expenses in {getMonthName(selectedMonth)} {selectedYear}
       </Typography>
 
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
@@ -248,6 +319,111 @@ function TripsList() {
         </List>
       )}
 
+      {/* Other Expenses Section */}
+      {expenses.length > 0 && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Other Expenses
+            </Typography>
+            <List>
+              {expenses
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                .map((expense) => (
+                <ListItem
+                  key={expense.id}
+                  secondaryAction={
+                    <Box>
+                      <IconButton
+                        edge="end"
+                        aria-label="attach"
+                        sx={{ mr: 1 }}
+                        onClick={() => handleFileUpload(expense.id)}
+                        title="Upload new evidence"
+                      >
+                        <AttachFile />
+                      </IconButton>
+                      <IconButton
+                        edge="end"
+                        aria-label="link-evidence"
+                        sx={{ mr: 1 }}
+                        onClick={() => {}} // TODO: Implement link existing evidence
+                        title="Link existing evidence"
+                      >
+                        <Link />
+                      </IconButton>
+                      <IconButton
+                        edge="end"
+                        aria-label="edit"
+                        onClick={() => handleEditExpense(expense)}
+                        sx={{ mr: 1 }}
+                      >
+                        <Edit />
+                      </IconButton>
+                      <IconButton
+                        edge="end"
+                        aria-label="delete"
+                        onClick={() => deleteExpense(expense.id)}
+                      >
+                        <Delete />
+                      </IconButton>
+                    </Box>
+                  }
+                >
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        {getCategoryIcon(categories.find(c => c.id === expense.category_id)?.name || '')}
+                        <Box>
+                          <Typography variant="body1">
+                            {expense.description}
+                          </Typography>
+                          {expense.notes && (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                              {expense.notes}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          {new Date(expense.date).toLocaleDateString()} • £{Number(expense.amount_gbp).toFixed(2)}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                          <Chip
+                            label={categories.find(c => c.id === expense.category_id)?.name || 'Unknown Category'}
+                            size="small"
+                            color="default"
+                            variant="outlined"
+                          />
+                          {Number(expense.vat_amount) > 0 && (
+                            <Chip
+                              label={`VAT: £${Number(expense.vat_amount).toFixed(2)}`}
+                              size="small"
+                              variant="outlined"
+                            />
+                          )}
+                          {expense.evidence_count > 0 && (
+                            <Chip
+                              label={`${expense.evidence_count} evidence`}
+                              size="small"
+                              color="info"
+                              variant="outlined"
+                            />
+                          )}
+                        </Box>
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </CardContent>
+        </Card>
+      )}
+
       <Fab
         color="primary"
         aria-label="add trip"
@@ -312,11 +488,14 @@ function TripsList() {
 
       <ExpenseDialog
         open={expenseDialogOpen}
-        onClose={() => setExpenseDialogOpen(false)}
-        categories={categories}
-        onSave={() => {
+        onClose={() => {
           setExpenseDialogOpen(false);
-          // Expenses are not displayed on this page, so no need to refresh
+          setEditingExpense(null);
+        }}
+        categories={categories}
+        editingExpense={editingExpense}
+        onExpenseCreated={() => {
+          loadData(); // Refresh to show new/updated expense
         }}
       />
     </Box>
