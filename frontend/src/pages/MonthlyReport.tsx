@@ -90,8 +90,7 @@ function MonthlyReport() {
 
   const handleGenerateCombinedPDF = async () => {
     try {
-      const today = new Date();
-      const filename = `expenses_${today.getFullYear()}_${String(today.getMonth() + 1).padStart(2, '0')}_${String(today.getDate()).padStart(2, '0')}.pdf`;
+      const filename = `expenses_${selectedYear}_${String(selectedMonth).padStart(2, '0')}.pdf`;
 
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/reports/combined/pdf?month=${selectedMonth}&year=${selectedYear}`);
 

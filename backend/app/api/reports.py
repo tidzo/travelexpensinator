@@ -59,14 +59,11 @@ def generate_combined_report_pdf(month: int, year: int, db: Session = Depends(ge
         report_data = expense_service.get_monthly_report(month, year)
         pdf_buffer = pdf_service.generate_combined_report(report_data)
 
-        from datetime import date
-        today = date.today()
-
         return Response(
             content=pdf_buffer.getvalue(),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename=expenses_{today.strftime('%Y_%m_%d')}.pdf"
+                "Content-Disposition": f"attachment; filename=expenses_{year}_{month:02d}.pdf"
             }
         )
     except Exception as e:
