@@ -15,7 +15,8 @@
       "Bash(npx tsc --noEmit)",
       "Bash(npm run dev)",
       "Bash(python -c \"from app.services.pdf_service import PDFService; print(''PDF Service imports work'')\")",
-      "Bash(python -c \"from PyPDF2 import PdfReader, PdfWriter; print(''PyPDF2 imports successfully'')\")"
+      "Bash(python -c \"from PyPDF2 import PdfReader, PdfWriter; print(''PyPDF2 imports successfully'')\")",
+      "Bash(npm uninstall @mui/x-date-pickers)"
     ],
     "deny": [],
     "ask": []

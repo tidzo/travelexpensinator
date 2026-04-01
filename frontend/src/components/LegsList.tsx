@@ -26,8 +26,6 @@ import {
   Edit,
   Delete,
   TripOrigin,
-  FlagOutlined,
-  Receipt,
   AttachFile,
   Link,
   AttachmentOutlined,
@@ -194,7 +192,9 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
     const icons: Record<string, JSX.Element> = {
       TRAIN: <DirectionsTransit />,
       TUBE: <DirectionsTransit />,
+      TFL: <DirectionsTransit />,
       TAXI: <DirectionsTransit />,
+      COACH: <DirectionsTransit />,
       FLIGHT: <DirectionsTransit />,
       BUS: <DirectionsTransit />,
       WALK: <DirectionsTransit />,
@@ -208,7 +208,9 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
     const colors: Record<string, string> = {
       TRAIN: 'primary',
       TUBE: 'secondary',
+      TFL: 'secondary',
       TAXI: 'warning',
+      COACH: 'info',
       FLIGHT: 'info',
       BUS: 'success',
       WALK: 'default',

@@ -17,7 +17,7 @@ import {
   Button,
   TextField,
 } from '@mui/material';
-import { Add, Edit, Delete, DirectionsTransit, Receipt, AttachFile, Link } from '@mui/icons-material';
+import { Add, Edit, Delete, DirectionsTransit, Receipt, AttachFile } from '@mui/icons-material';
 import { Trip, ExpenseCategory, ExpenseItem } from '../types';
 import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -342,15 +342,6 @@ function TripsList() {
                         title="Upload new evidence"
                       >
                         <AttachFile />
-                      </IconButton>
-                      <IconButton
-                        edge="end"
-                        aria-label="link-evidence"
-                        sx={{ mr: 1 }}
-                        onClick={() => {}} // TODO: Implement link existing evidence
-                        title="Link existing evidence"
-                      >
-                        <Link />
                       </IconButton>
                       <IconButton
                         edge="end"
