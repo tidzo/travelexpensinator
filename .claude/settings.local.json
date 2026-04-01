@@ -16,7 +16,8 @@
       "Bash(npm run dev)",
       "Bash(python -c \"from app.services.pdf_service import PDFService; print(''PDF Service imports work'')\")",
       "Bash(python -c \"from PyPDF2 import PdfReader, PdfWriter; print(''PyPDF2 imports successfully'')\")",
-      "Bash(npm uninstall @mui/x-date-pickers)"
+      "Bash(npm uninstall @mui/x-date-pickers)",
+      "Bash(sed -n '446p' /Users/matt/travelexpensinator/frontend/src/components/LegsList.tsx)"
     ],
     "deny": [],
     "ask": []

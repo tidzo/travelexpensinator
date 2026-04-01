@@ -20,7 +20,6 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Divider,
 } from '@mui/material';
 import {
   Add,
@@ -37,7 +36,7 @@ import {
   Link,
   AttachmentOutlined,
 } from '@mui/icons-material';
-import { Trip, Journey, Leg, Location, ExpenseCategory, ExpenseItem, EvidenceItem } from '../types';
+import { Trip, Journey, Location, ExpenseCategory, ExpenseItem, EvidenceItem } from '../types';
 import { api } from '../services/api';
 import LegsList from '../components/LegsList';
 import ExpenseDialog from '../components/ExpenseDialog';
@@ -520,7 +519,7 @@ function TripDetail() {
                                 variant="outlined"
                               />
                             )}
-                            {expense.evidence_count > 0 && (
+                            {expense.evidence_count && expense.evidence_count > 0 && (
                               <Chip
                                 icon={<AttachmentOutlined />}
                                 label={`${expense.evidence_count} evidence`}

@@ -160,11 +160,11 @@ function ExpenseDialog({
           margin="dense"
           label="Amount (GBP)"
           type="number"
-          step="0.01"
           fullWidth
           variant="outlined"
           value={expense.amount_gbp}
           onChange={(e) => setExpense({ ...expense, amount_gbp: e.target.value })}
+          inputProps={{ step: 0.01 }}
           sx={{ mb: 2 }}
         />
 
@@ -198,12 +198,12 @@ function ExpenseDialog({
         <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
           <InputLabel>Billable</InputLabel>
           <Select
-            value={expense.is_billable}
-            onChange={(e) => setExpense({ ...expense, is_billable: e.target.value as boolean })}
+            value={expense.is_billable.toString()}
+            onChange={(e) => setExpense({ ...expense, is_billable: e.target.value === 'true' })}
             label="Billable"
           >
-            <MenuItem value={true}>Yes</MenuItem>
-            <MenuItem value={false}>No</MenuItem>
+            <MenuItem value="true">Yes</MenuItem>
+            <MenuItem value="false">No</MenuItem>
           </Select>
         </FormControl>
       </DialogContent>

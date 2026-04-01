@@ -396,7 +396,7 @@ function TripsList() {
                               variant="outlined"
                             />
                           )}
-                          {expense.evidence_count > 0 && (
+                          {expense.evidence_count && expense.evidence_count > 0 && (
                             <Chip
                               label={`${expense.evidence_count} evidence`}
                               size="small"

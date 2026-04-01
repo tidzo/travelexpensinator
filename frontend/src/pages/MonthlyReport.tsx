@@ -11,7 +11,6 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Divider,
   Button,
 } from '@mui/material';
 import { PictureAsPdf } from '@mui/icons-material';
@@ -200,7 +199,7 @@ function MonthlyReport() {
                       </Typography>
                     )}
 
-                    <TableContainer component={Paper} variant="outlined" size="small">
+                    <TableContainer component={(props: any) => <Paper variant="outlined" {...props} />}>
                       <Table size="small">
                         <TableHead>
                           <TableRow>

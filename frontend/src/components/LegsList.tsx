@@ -152,7 +152,7 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
 
   const handleEditLeg = (leg: Leg) => {
     setEditingLeg(leg);
-    const expense = legExpenses[leg.id];
+    const expense = legExpenses[leg.id] || {};
     setNewLeg({
       journey_id: leg.journey_id,
       mode_of_transport: leg.mode_of_transport,
@@ -423,7 +423,7 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
                         color={legExpenses[leg.id]?.amount_gbp > 0 ? 'primary' : 'text.secondary'}
                       >
                         {legExpenses[leg.id]
-                          ? formatCurrency(legExpenses[leg.id].amount_gbp)
+                          ? formatCurrency(legExpenses[leg.id]?.amount_gbp || 0)
                           : '£0.00'
                         }
                       </Typography>
@@ -431,22 +431,22 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
                     {legExpenses[leg.id] && (
                       <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                         <Chip
-                          label={categories.find(c => c.id === legExpenses[leg.id].category_id)?.name || 'Unknown Category'}
+                          label={categories.find(c => c.id === legExpenses[leg.id]?.category_id)?.name || 'Unknown Category'}
                           size="small"
                           color="default"
                           variant="outlined"
                         />
-                        {legExpenses[leg.id].vat_amount > 0 && (
+                        {legExpenses[leg.id]?.vat_amount && legExpenses[leg.id]?.vat_amount > 0 && (
                           <Chip
-                            label={`VAT: ${formatCurrency(legExpenses[leg.id].vat_amount)}`}
+                            label={`VAT: ${formatCurrency(legExpenses[leg.id]?.vat_amount || 0)}`}
                             size="small"
                             variant="outlined"
                           />
                         )}
-                        {legExpenses[leg.id].evidence_count > 0 && (
+                        {legExpenses[leg.id] && (legExpenses[leg.id]?.evidence_count ?? 0) > 0 && (
                           <Chip
                             icon={<AttachmentOutlined />}
-                            label={`${legExpenses[leg.id].evidence_count} evidence`}
+                            label={`${legExpenses[leg.id]?.evidence_count} evidence`}
                             size="small"
                             color="info"
                             variant="outlined"
@@ -526,11 +526,11 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
             margin="dense"
             label="Cost (GBP)"
             type="number"
-            step="0.01"
             fullWidth
             variant="outlined"
             value={newLeg.expense_amount}
             onChange={(e) => setNewLeg({ ...newLeg, expense_amount: e.target.value })}
+            inputProps={{ step: 0.01 }}
             sx={{ mb: 2 }}
           />
 
