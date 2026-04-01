@@ -166,13 +166,19 @@ class ExpenseService:
         return totals
 
     def get_expense_description_with_notes(self, expense: ExpenseItem) -> str:
-        """Get expense description including leg notes if applicable"""
+        """Get expense description including expense notes and leg notes if applicable"""
         description = expense.description
+
+        # First, add expense notes if they exist
+        if expense.notes:
+            description += f"\n{expense.notes}"
 
         # If this expense is linked to a leg and the leg has notes, append them
         if expense.leg_id and expense.leg and expense.leg.notes:
             # Check if notes are already in description (for newly created legs)
             if '\n' not in description:
+                description += f"\n{expense.leg.notes}"
+            else:
                 description += f"\n{expense.leg.notes}"
 
         return description

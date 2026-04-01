@@ -52,6 +52,7 @@ function ExpensesList() {
     category_id: 1, // Default to first category
     date: new Date().toISOString().split('T')[0],
     description: '',
+    notes: '',
     amount_gbp: '',
     is_billable: true,
     trip_id: undefined as number | undefined,
@@ -321,6 +322,7 @@ function ExpensesList() {
           category_id: newExpense.category_id,
           date: newExpense.date,
           description: newExpense.description,
+          notes: newExpense.notes || null,
           amount_gbp: parseFloat(newExpense.amount_gbp),
           is_billable: newExpense.is_billable
         });
@@ -347,6 +349,7 @@ function ExpensesList() {
       category_id: expense.category_id,
       date: expense.date,
       description: expense.description,
+      notes: expense.notes || '',
       amount_gbp: expense.amount_gbp.toString(),
       is_billable: expense.is_billable,
       trip_id: expense.trip_id,
@@ -363,6 +366,7 @@ function ExpensesList() {
       category_id: 1,
       date: new Date().toISOString().split('T')[0],
       description: '',
+      notes: '',
       amount_gbp: '',
       is_billable: true,
       trip_id: undefined,
@@ -511,6 +515,17 @@ function ExpensesList() {
             variant="outlined"
             value={newExpense.description}
             onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Notes (Optional)"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={2}
+            value={newExpense.notes}
+            onChange={(e) => setNewExpense({ ...newExpense, notes: e.target.value })}
             sx={{ mb: 2 }}
           />
           <TextField

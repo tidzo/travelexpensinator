@@ -7,6 +7,7 @@ class ExpenseItemBase(BaseModel):
     category_id: int
     date: date
     description: str
+    notes: Optional[str] = None
     amount_gbp: Decimal
     is_billable: bool = True
     is_monthly_expense: bool = False
@@ -23,6 +24,7 @@ class ExpenseItemUpdate(BaseModel):
     category_id: Optional[int] = None
     date: Optional[date] = None
     description: Optional[str] = None
+    notes: Optional[str] = None
     amount_gbp: Optional[Decimal] = None
     is_billable: Optional[bool] = None
     is_monthly_expense: Optional[bool] = None

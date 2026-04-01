@@ -51,6 +51,7 @@ export interface ExpenseItem {
   category_id: number;
   date: string;
   description: string;
+  notes?: string;
   amount_gbp: number;
   ex_vat_amount: number;
   vat_amount: number;

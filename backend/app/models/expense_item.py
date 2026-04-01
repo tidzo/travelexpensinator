@@ -13,6 +13,7 @@ class ExpenseItem(Base):
     category_id = Column(Integer, ForeignKey("expense_categories.id"), nullable=False)
     date = Column(Date, nullable=False, index=True)
     description = Column(String, nullable=False)
+    notes = Column(String, nullable=True)
     amount_gbp = Column(Numeric(10, 2), nullable=False)
     ex_vat_amount = Column(Numeric(10, 2), nullable=False, default=0)
     vat_amount = Column(Numeric(10, 2), nullable=False, default=0)
