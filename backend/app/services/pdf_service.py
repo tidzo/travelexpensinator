@@ -158,9 +158,11 @@ class PDFService:
                 # Create expense table showing all expenses linked to this evidence
                 expense_data = [['Date', 'Description', 'Amount']]
                 for linked_expense in linked_expenses:
+                    # Format description with notes in italics if present
+                    description_formatted = self._format_description_with_notes(linked_expense.description)
                     expense_data.append([
                         linked_expense.date.strftime('%d/%m/%Y'),
-                        linked_expense.description,
+                        description_formatted,
                         f"£{linked_expense.amount_gbp:.2f}"
                     ])
 
