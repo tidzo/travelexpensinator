@@ -101,9 +101,26 @@ class ExpenseService:
         trip_expenses = list(grouped_by_trip.values())
         trip_expenses.sort(key=lambda x: x["trip"].start_date, reverse=False)
 
-        # Sort expenses within each trip by date (ascending - earliest first)
+        # Sort expenses within each trip by date first, then by logical order within each day
         for trip_group in trip_expenses:
-            trip_group["expenses"].sort(key=lambda x: x.date, reverse=False)
+            trip = trip_group["trip"]
+
+            def expense_sort_key(expense):
+                is_transport_leg = expense.leg_id is not None
+                is_first_day = expense.date == trip.start_date
+                is_last_day = expense.date == trip.end_date
+
+                # On first day: transport legs (0) then other expenses (1)
+                # On last day: other expenses (0) then transport legs (1)
+                # On middle days: other expenses (0) then transport legs (1)
+                if is_first_day:
+                    expense_type_priority = 0 if is_transport_leg else 1
+                else:  # last day or middle days
+                    expense_type_priority = 1 if is_transport_leg else 0
+
+                return (expense.date, expense_type_priority)
+
+            trip_group["expenses"].sort(key=expense_sort_key, reverse=False)
 
         return {
             "month": month,
