@@ -4,10 +4,6 @@ import {
   CardContent,
   Typography,
   Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -21,12 +17,12 @@ import {
 import { PictureAsPdf } from '@mui/icons-material';
 import { MonthlyReport as MonthlyReportType } from '../types';
 import { api } from '../services/api';
+import { useDateContext } from '../contexts/DateContext';
 
 function MonthlyReport() {
+  const { selectedMonth, selectedYear } = useDateContext();
   const [report, setReport] = useState<MonthlyReportType | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   const loadReport = async () => {
     setLoading(true);
@@ -128,42 +124,11 @@ function MonthlyReport() {
 
   return (
     <Box sx={{ pb: 8 }}>
-      <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-        Monthly Report
-      </Typography>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Month</InputLabel>
-          <Select
-            value={selectedMonth}
-            label="Month"
-            onChange={(e) => setSelectedMonth(e.target.value as number)}
-          >
-            {Array.from({ length: 12 }, (_, i) => (
-              <MenuItem key={i + 1} value={i + 1}>
-                {new Date(0, i).toLocaleString('en-GB', { month: 'long' })}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Year</InputLabel>
-          <Select
-            value={selectedYear}
-            label="Year"
-            onChange={(e) => setSelectedYear(e.target.value as number)}
-          >
-            {Array.from({ length: 5 }, (_, i) => (
-              <MenuItem key={i} value={new Date().getFullYear() - 2 + i}>
-                {new Date().getFullYear() - 2 + i}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ flexGrow: 1 }}>
+          Monthly Report
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             variant="outlined"
             startIcon={<PictureAsPdf />}

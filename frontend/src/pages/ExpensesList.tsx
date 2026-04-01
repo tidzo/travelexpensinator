@@ -10,22 +10,24 @@ import {
   ListItemText,
   IconButton,
   Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
   TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { Add, Edit, Delete, AttachFile, AttachmentOutlined, Link, Restaurant, Hotel, DirectionsTransit } from '@mui/icons-material';
 import { ExpenseItem, Trip, Journey, Leg, Location, ExpenseCategory, EvidenceItem } from '../types';
 import { api } from '../services/api';
+import { useDateContext } from '../contexts/DateContext';
 
 function ExpensesList() {
+  const { selectedMonth, selectedYear } = useDateContext();
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [journeys, setJourneys] = useState<Journey[]>([]);
@@ -33,8 +35,6 @@ function ExpensesList() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
-  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
   const [uploadingExpenseId, setUploadingExpenseId] = useState<number | null>(null);
@@ -62,7 +62,7 @@ function ExpensesList() {
   const loadData = async () => {
     try {
       const [expensesData, tripsData, journeysData, legsData, locationsData, categoriesData] = await Promise.all([
-        api.get<ExpenseItem[]>(`/expenses?month=${filterMonth}&year=${filterYear}`),
+        api.get<ExpenseItem[]>(`/expenses?month=${selectedMonth}&year=${selectedYear}`),
         api.get<Trip[]>('/trips'),
         api.get<Journey[]>('/journeys'),
         api.get<Leg[]>('/legs'),
@@ -84,7 +84,7 @@ function ExpensesList() {
 
   useEffect(() => {
     loadData();
-  }, [filterMonth, filterYear]);
+  }, [selectedMonth, selectedYear]);
 
   const deleteExpense = async (expenseId: number) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
@@ -381,43 +381,11 @@ function ExpensesList() {
         Expenses
       </Typography>
 
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Month</InputLabel>
-          <Select
-            value={filterMonth}
-            label="Month"
-            onChange={(e) => setFilterMonth(e.target.value as number)}
-          >
-            {Array.from({ length: 12 }, (_, i) => (
-              <MenuItem key={i + 1} value={i + 1}>
-                {new Date(0, i).toLocaleString('en-GB', { month: 'long' })}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Year</InputLabel>
-          <Select
-            value={filterYear}
-            label="Year"
-            onChange={(e) => setFilterYear(e.target.value as number)}
-          >
-            {Array.from({ length: 5 }, (_, i) => (
-              <MenuItem key={i} value={new Date().getFullYear() - 2 + i}>
-                {new Date().getFullYear() - 2 + i}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-
       {expenses.length === 0 ? (
         <Card>
           <CardContent>
             <Typography variant="h6" color="text.secondary" textAlign="center">
-              No expenses for {new Date(0, filterMonth - 1).toLocaleString('en-GB', { month: 'long' })} {filterYear}
+              No expenses for {new Date(0, selectedMonth - 1).toLocaleString('en-GB', { month: 'long' })} {selectedYear}
             </Typography>
             <Typography variant="body2" color="text.secondary" textAlign="center">
               Add your first expense to get started

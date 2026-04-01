@@ -16,22 +16,18 @@ import {
   DialogActions,
   Button,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import { Add, Edit, Delete } from '@mui/icons-material';
 import { Trip } from '../types';
 import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useDateContext } from '../contexts/DateContext';
 
 function TripsList() {
   const navigate = useNavigate();
+  const { selectedMonth, selectedYear } = useDateContext();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
-  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [newTrip, setNewTrip] = useState({
@@ -42,7 +38,7 @@ function TripsList() {
 
   const loadTrips = async () => {
     try {
-      const data = await api.get<Trip[]>(`/trips?month=${filterMonth}&year=${filterYear}`);
+      const data = await api.get<Trip[]>(`/trips?month=${selectedMonth}&year=${selectedYear}`);
       setTrips(data);
     } catch (error) {
       console.error('Failed to load trips:', error);
@@ -53,7 +49,7 @@ function TripsList() {
 
   useEffect(() => {
     loadTrips();
-  }, [filterMonth, filterYear]);
+  }, [selectedMonth, selectedYear]);
 
   const deleteTrip = async (tripId: number) => {
     if (window.confirm('Are you sure you want to delete this trip?')) {
@@ -145,38 +141,6 @@ function TripsList() {
       <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
         My Trips
       </Typography>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Month</InputLabel>
-          <Select
-            value={filterMonth}
-            label="Month"
-            onChange={(e) => setFilterMonth(e.target.value as number)}
-          >
-            {Array.from({ length: 12 }, (_, i) => (
-              <MenuItem key={i + 1} value={i + 1}>
-                {new Date(0, i).toLocaleString('en-GB', { month: 'long' })}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Year</InputLabel>
-          <Select
-            value={filterYear}
-            label="Year"
-            onChange={(e) => setFilterYear(e.target.value as number)}
-          >
-            {Array.from({ length: 5 }, (_, i) => (
-              <MenuItem key={i} value={new Date().getFullYear() - 2 + i}>
-                {new Date().getFullYear() - 2 + i}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
 
       {trips.length === 0 ? (
         <Card>
