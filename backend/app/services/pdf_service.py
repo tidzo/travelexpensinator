@@ -46,6 +46,15 @@ class PDFService:
             spaceAfter=0,
             spaceBefore=0,
         )
+        # Add italic style for trip notes
+        self.trip_notes_style = ParagraphStyle(
+            'TripNotesStyle',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            fontName='Helvetica-Oblique',
+            spaceAfter=0,
+            spaceBefore=0,
+        )
 
     def generate_monthly_report(self, report_data: Dict[str, Any]) -> BytesIO:
         buffer = BytesIO()
@@ -332,7 +341,7 @@ class PDFService:
 
         # Add trip notes if they exist
         if trip.notes and trip.notes.strip():
-            story_elements.append(Paragraph(trip.notes, self.styles['Normal']))
+            story_elements.append(Paragraph(trip.notes, self.trip_notes_style))
             story_elements.append(Spacer(1, 6))
         else:
             story_elements.append(Spacer(1, 6))
