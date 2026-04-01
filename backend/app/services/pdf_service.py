@@ -247,6 +247,27 @@ class PDFService:
 
         return story_elements
 
+    def _embed_evidence_file_scaled(self, file_path: Path, file_type: str, extra_scale: float = 1.0):
+        """Embed evidence file with additional scaling"""
+        story_elements = []
+
+        try:
+            if file_type and file_type.lower().startswith('image'):
+                # Handle image files with extra scaling
+                story_elements.extend(self._embed_image_scaled(file_path, extra_scale))
+            elif file_type and 'pdf' in file_type.lower():
+                # Handle PDF files with extra scaling
+                story_elements.extend(self._embed_pdf_scaled(file_path, extra_scale))
+            else:
+                # For other file types, show a placeholder
+                story_elements.append(Paragraph(f"File type not supported for inline display: {file_type}", self.styles['Normal']))
+                story_elements.append(Paragraph(f"File location: {file_path}", self.styles['Normal']))
+
+        except Exception as e:
+            story_elements.append(Paragraph(f"Error processing file: {str(e)}", self.styles['Normal']))
+
+        return story_elements
+
     def _embed_image(self, file_path: Path):
         """Embed an image file into the PDF"""
         story_elements = []
@@ -267,6 +288,42 @@ class PDFService:
 
                 # Reduce scaling by 10%
                 scale = scale * 0.9
+
+                final_width = img_width * scale
+                final_height = img_height * scale
+
+                # Create reportlab Image
+                image = Image(str(file_path), width=final_width, height=final_height)
+                story_elements.append(image)
+
+        except Exception as e:
+            story_elements.append(Paragraph(f"Error loading image: {str(e)}", self.styles['Normal']))
+
+        return story_elements
+
+    def _embed_image_scaled(self, file_path: Path, extra_scale: float = 1.0):
+        """Embed an image file into the PDF with additional scaling"""
+        story_elements = []
+
+        try:
+            # Open and process the image
+            with PILImage.open(file_path) as img:
+                # Convert to RGB if necessary
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+
+                # Calculate scaling to fit on page (with smaller margins)
+                max_width = 7.5 * inch  # A4 width minus smaller margins
+                max_height = 10 * inch  # A4 height minus smaller margins
+
+                img_width, img_height = img.size
+                scale = min(max_width / img_width, max_height / img_height, 1.0)
+
+                # Reduce scaling by 10% (original reduction)
+                scale = scale * 0.9
+
+                # Apply additional scaling
+                scale = scale * extra_scale
 
                 final_width = img_width * scale
                 final_height = img_height * scale
@@ -332,6 +389,70 @@ class PDFService:
                 if page_num > 0:
                     story_elements.append(Spacer(1, 8))  # Small spacing between pages
                 story_elements.append(rl_image)
+
+            doc.close()
+
+        except Exception as e:
+            story_elements.append(Paragraph(f"Error processing PDF: {str(e)}", self.styles['Normal']))
+
+        return story_elements
+
+    def _embed_pdf_scaled(self, file_path: Path, extra_scale: float = 1.0):
+        """Embed pages from a PDF file as images with additional scaling"""
+        story_elements = []
+
+        try:
+            # Open the PDF document
+            doc = fitz.open(str(file_path))
+            num_pages = len(doc)
+
+            # Limit pages to prevent very large evidence binders
+            max_pages = min(num_pages, 5)  # Limit to 5 pages per document
+
+            if num_pages > max_pages:
+                story_elements.append(Paragraph(f"PDF file has {num_pages} pages. Only first {max_pages} pages will be included.", self.styles['Normal']))
+                story_elements.append(Spacer(1, 6))
+
+            # Convert each page to an image and embed it
+            for page_num in range(max_pages):
+                page = doc[page_num]
+
+                # Render page as image (matrix controls resolution)
+                matrix = fitz.Matrix(1.5, 1.5)  # 1.5x zoom for good quality
+                pix = page.get_pixmap(matrix=matrix)
+
+                # Convert to PIL Image
+                img_data = pix.tobytes("ppm")
+                img = PILImage.open(BytesIO(img_data))
+
+                # Calculate scaling to fit on page (with smaller margins)
+                max_width = 7.5 * inch  # Increased due to smaller margins
+                max_height = 10 * inch  # Increased due to smaller margins
+
+                img_width, img_height = img.size
+                scale = min(max_width / img_width, max_height / img_height, 1.0)
+
+                # Reduce scaling by 10% (original reduction)
+                scale = scale * 0.9
+
+                # Apply additional scaling
+                scale = scale * extra_scale
+
+                final_width = img_width * scale
+                final_height = img_height * scale
+
+                # Save to temporary buffer for ReportLab
+                temp_buffer = BytesIO()
+                img.save(temp_buffer, format='PNG')
+                temp_buffer.seek(0)
+
+                # Create reportlab Image
+                image = Image(temp_buffer, width=final_width, height=final_height)
+                story_elements.append(image)
+
+                # Add spacing between pages (except after last page)
+                if page_num < max_pages - 1:
+                    story_elements.append(Spacer(1, 12))
 
             doc.close()
 
@@ -511,3 +632,220 @@ class PDFService:
         month_name = start.strftime('%B')  # Full month name
 
         return f"Trip: {start_day_short} {start_day} - {end_day_short} {end_day} {month_name}"
+
+    def generate_combined_report(self, report_data: Dict[str, Any]) -> BytesIO:
+        """Generate a combined PDF with monthly report followed by evidence binder"""
+        buffer = BytesIO()
+        # Use default margins (back to original)
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        story = []
+
+        month = report_data['month']
+        year = report_data['year']
+
+        # First section: Monthly Report
+        story.extend(self._build_monthly_report_content(report_data))
+
+        # Page break between sections
+        story.append(PageBreak())
+
+        # Second section: Evidence Binder
+        all_expenses = []
+        for trip_group in report_data['trip_expenses']:
+            all_expenses.extend(trip_group['expenses'])
+        all_expenses.extend(report_data['unlinked_expenses'])
+
+        story.extend(self._build_evidence_binder_content(all_expenses, month, year))
+
+        # Build the combined PDF
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+
+    def _build_monthly_report_content(self, report_data: Dict[str, Any]) -> List:
+        """Build the monthly report content as story elements"""
+        story = []
+        month = report_data['month']
+        year = report_data['year']
+
+        # Title
+        story.append(Paragraph(f"Expenses Report: {self._get_month_name(month)} {year}", self.title_style))
+
+        # Summary subtitle
+        story.append(Paragraph("Summary", self.styles['Heading2']))
+        story.append(Spacer(1, 10))
+
+        # Summary table
+        totals = report_data['totals']
+        def format_amount(amount):
+            return f"£{amount:.2f}" if amount > 0 else ""
+
+        summary_data = [
+            ['Category', 'Net (ex VAT)', 'VAT', 'Gross (Paid)'],
+            ['Standard Rated',
+             format_amount(totals['standard_rated_gross'] - totals['standard_rated_vat']),
+             format_amount(totals['standard_rated_vat']),
+             format_amount(totals['standard_rated_gross'])],
+            ['Zero-Rated or Out of Scope',
+             format_amount(totals['zero_rated'] + totals['out_of_scope']),
+             format_amount(0),
+             format_amount(totals['zero_rated'] + totals['out_of_scope'])],
+            ['TOTAL',
+             f"£{(totals['standard_rated_gross'] - totals['standard_rated_vat']) + (totals['zero_rated'] + totals['out_of_scope']):.2f}",
+             format_amount(totals['standard_rated_vat']),
+             f"£{totals['total_expenses']:.2f}"]
+        ]
+
+        summary_table = Table(summary_data, colWidths=[2*inch, 1.5*inch, 1*inch, 1.5*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+
+        story.append(summary_table)
+        story.append(Spacer(1, 15))
+
+        # Details section
+        if report_data['trip_expenses']:
+            story.append(Paragraph("Details", self.styles['Heading2']))
+            story.append(Spacer(1, 10))
+
+            for trip_group in report_data['trip_expenses']:
+                story.extend(self._create_trip_section(trip_group))
+                story.append(Spacer(1, 12))
+
+        # Other expenses
+        if report_data['unlinked_expenses']:
+            story.append(Paragraph("Other Expenses", self.styles['Heading2']))
+            story.append(Spacer(1, 10))
+
+            data = [['Date', 'Description', 'Net (ex VAT)', 'VAT', 'Gross (Paid)']]
+            for expense in report_data['unlinked_expenses']:
+                description_para = self._format_description_with_notes(expense.description)
+                data.append([
+                    expense.date.strftime('%Y-%m-%d'),
+                    description_para,
+                    format_amount(expense.ex_vat_amount),
+                    format_amount(expense.vat_amount),
+                    f"£{expense.amount_gbp:.2f}"
+                ])
+
+            table = Table(data, colWidths=[1*inch, 2*inch, 1*inch, 1*inch, 1*inch])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (1, -1), 'LEFT'),
+                ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP')
+            ]))
+
+            story.append(table)
+
+        return story
+
+    def _build_evidence_binder_content(self, expenses: List[ExpenseItem], month: int, year: int) -> List:
+        """Build the evidence binder content as story elements"""
+        story = []
+
+        # Title
+        story.append(Paragraph(f"Evidence Binder - {self._get_month_name(month)} {year}", self.title_style))
+        story.append(Spacer(1, 6))
+
+        if not expenses:
+            story.append(Paragraph("No evidence items found for this period.", self.styles['Normal']))
+            return story
+
+        # Track which evidence items have already been presented to avoid duplication
+        presented_evidence_ids = set()
+        evidence_count = 0
+
+        # Process expenses in the order they appear (preserving web report ordering)
+        for expense in expenses:
+            for link in expense.evidence_links:
+                evidence_id = link.evidence_item.id
+
+                # Skip if this evidence item has already been presented
+                if evidence_id in presented_evidence_ids:
+                    continue
+
+                presented_evidence_ids.add(evidence_id)
+                evidence_count += 1
+
+                # Start each evidence item on a new page (except the first)
+                if evidence_count > 1:
+                    story.append(PageBreak())
+
+                evidence = link.evidence_item
+
+                # Collect all expenses linked to this evidence item
+                linked_expenses = []
+                seen_expense_ids = set()
+                for exp in expenses:
+                    if exp.id in seen_expense_ids:
+                        continue
+                    for exp_link in exp.evidence_links:
+                        if exp_link.evidence_item.id == evidence_id:
+                            linked_expenses.append(exp)
+                            seen_expense_ids.add(exp.id)
+                            break
+
+                # Create expense table
+                expense_data = [['Date', 'Description', 'Amount']]
+                for linked_expense in linked_expenses:
+                    description_formatted = self._format_description_with_notes(linked_expense.description)
+                    expense_data.append([
+                        linked_expense.date.strftime('%d/%m/%Y'),
+                        description_formatted,
+                        f"£{linked_expense.amount_gbp:.2f}"
+                    ])
+
+                expense_table = Table(expense_data, colWidths=[1*inch, 5.5*inch, 1*inch])
+                expense_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 3),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
+                ]))
+
+                num_data_rows = len(expense_data) - 1
+                if num_data_rows <= 2:
+                    story.append(KeepTogether([expense_table]))
+                else:
+                    story.append(expense_table)
+                story.append(Spacer(1, 12))
+
+                # Include the actual evidence file
+                try:
+                    # Handle both cases: file_path with or without 'uploads/' prefix
+                    if evidence.file_path.startswith('uploads/'):
+                        file_path = Path(evidence.file_path)
+                    else:
+                        file_path = Path("uploads") / evidence.file_path
+
+                    if file_path.exists():
+                        story.extend(self._embed_evidence_file_scaled(file_path, evidence.file_type, extra_scale=0.9))
+                    else:
+                        story.append(Paragraph(f"File not found: {evidence.file_path} (looked at: {file_path})", self.styles['Normal']))
+                except Exception as e:
+                    story.append(Paragraph(f"Error loading file: {str(e)}", self.styles['Normal']))
+
+        return story
+

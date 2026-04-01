@@ -87,49 +87,30 @@ function MonthlyReport() {
     return description;
   };
 
-  const handleGeneratePDF = async () => {
+
+  const handleGenerateCombinedPDF = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/reports/monthly/pdf?month=${selectedMonth}&year=${selectedYear}`);
+      const today = new Date();
+      const filename = `expenses_${today.getFullYear()}_${String(today.getMonth() + 1).padStart(2, '0')}_${String(today.getDate()).padStart(2, '0')}.pdf`;
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/reports/combined/pdf?month=${selectedMonth}&year=${selectedYear}`);
 
       if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+        throw new Error('Failed to generate combined report');
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `monthly_report_${selectedYear}_${selectedMonth.toString().padStart(2, '0')}.pdf`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
-    }
-  };
-
-  const handleGenerateEvidenceBinder = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/reports/evidence-binder/pdf?month=${selectedMonth}&year=${selectedYear}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to generate evidence binder');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `evidence_binder_${selectedYear}_${selectedMonth.toString().padStart(2, '0')}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to generate evidence binder:', error);
-      alert('Failed to generate evidence binder. Please try again.');
+      console.error('Failed to generate combined report:', error);
+      alert('Failed to generate report PDF. Please try again.');
     }
   };
 
@@ -143,22 +124,13 @@ function MonthlyReport() {
         <Typography variant="h4" component="h1" sx={{ flexGrow: 1 }}>
           Monthly Report
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="outlined"
-            startIcon={<PictureAsPdf />}
-            onClick={handleGeneratePDF}
-          >
-            Generate Report PDF
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<PictureAsPdf />}
-            onClick={handleGenerateEvidenceBinder}
-          >
-            Generate Evidence Binder
-          </Button>
-        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<PictureAsPdf />}
+          onClick={handleGenerateCombinedPDF}
+        >
+          Generate Report PDF
+        </Button>
       </Box>
 
       {report && (
