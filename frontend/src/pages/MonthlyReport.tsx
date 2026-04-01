@@ -78,9 +78,9 @@ function MonthlyReport() {
       const notes = noteParts.join('\n');
       return (
         <Box>
-          <Typography component="span">{mainDesc}</Typography>
+          <Typography component="span" variant="body2">{mainDesc}</Typography>
           <br />
-          <Typography component="span" fontStyle="italic">{notes}</Typography>
+          <Typography component="span" variant="body2" color="text.secondary" fontStyle="italic">{notes}</Typography>
         </Box>
       );
     }
