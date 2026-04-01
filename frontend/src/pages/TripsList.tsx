@@ -259,7 +259,7 @@ function TripsList() {
           {trips.map((trip) => (
             <Card key={trip.id} sx={{ mb: 2 }}>
               <ListItem
-                onClick={() => navigate(`/trips/${trip.id}`)}
+                onClick={() => navigate(`/expenses/trips/${trip.id}`)}
                 sx={{ cursor: 'pointer' }}
                 secondaryAction={
                   <Box>

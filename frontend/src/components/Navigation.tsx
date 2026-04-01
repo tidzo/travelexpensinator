@@ -1,5 +1,5 @@
 import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
-import { FlightTakeoff, Receipt, Assessment, LocationOn } from '@mui/icons-material';
+import { Receipt, Assessment, LocationOn } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -20,11 +20,6 @@ function Navigation() {
         onChange={(_event, newValue) => handleNavigation(newValue)}
         showLabels
       >
-        <BottomNavigationAction
-          label="Trips"
-          value="/trips"
-          icon={<FlightTakeoff />}
-        />
         <BottomNavigationAction
           label="Expenses"
           value="/expenses"

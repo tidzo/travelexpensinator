@@ -309,7 +309,7 @@ function TripDetail() {
   return (
     <Box sx={{ pb: 8 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <IconButton onClick={() => navigate('/trips')} sx={{ mr: 2 }}>
+        <IconButton onClick={() => navigate('/expenses')} sx={{ mr: 2 }}>
           <ArrowBack />
         </IconButton>
         <Typography variant="h4" component="h1">

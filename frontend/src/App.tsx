@@ -63,7 +63,7 @@ function AppContent() {
   const location = useLocation();
 
   // Pages that should show date selectors
-  const showDateSelectors = ['/trips', '/', '/expenses', '/reports'].includes(location.pathname);
+  const showDateSelectors = ['/', '/expenses', '/reports'].includes(location.pathname);
 
   return (
     <>
@@ -81,9 +81,8 @@ function AppContent() {
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Routes>
           <Route path="/" element={<TripsList />} />
-          <Route path="/trips" element={<TripsList />} />
-          <Route path="/trips/:tripId" element={<TripDetail />} />
           <Route path="/expenses" element={<TripsList />} />
+          <Route path="/expenses/trips/:tripId" element={<TripDetail />} />
           <Route path="/locations" element={<LocationsList />} />
           <Route path="/reports" element={<MonthlyReport />} />
         </Routes>
