@@ -10,7 +10,10 @@
       "Bash(sqlite3 data/app.db \"SELECT id, description, notes FROM expense_items WHERE notes IS NOT NULL AND notes != '''';\")",
       "Bash(sqlite3 data/app.db \"SELECT id, description, notes FROM expense_items LIMIT 5;\")",
       "Bash(sqlite3 data/app.db \"UPDATE expense_items SET notes = ''Test note for debugging'' WHERE id = 1;\")",
-      "Bash(sqlite3 data/app.db \"SELECT id, description, notes FROM expense_items WHERE id = 1;\")"
+      "Bash(sqlite3 data/app.db \"SELECT id, description, notes FROM expense_items WHERE id = 1;\")",
+      "Bash(npm run build)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npm run dev)"
     ],
     "deny": [],
     "ask": []
