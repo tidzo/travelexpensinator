@@ -240,9 +240,14 @@ function MonthlyReport() {
 
                 {report.trip_expenses.map((tripGroup) => (
                   <Box key={tripGroup.trip.id} sx={{ mb: 2 }}>
-                    <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ mb: tripGroup.trip.notes ? 0.5 : 1 }}>
                       {formatTripName(tripGroup.trip.start_date, tripGroup.trip.end_date)}
                     </Typography>
+                    {tripGroup.trip.notes && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontStyle: 'italic' }}>
+                        {tripGroup.trip.notes}
+                      </Typography>
+                    )}
 
                     <TableContainer component={Paper} variant="outlined" size="small">
                       <Table size="small">

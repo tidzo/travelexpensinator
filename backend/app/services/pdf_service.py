@@ -329,7 +329,13 @@ class PDFService:
 
         # Add trip title
         story_elements.append(Paragraph(trip_title, self.heading4_style))
-        story_elements.append(Spacer(1, 6))
+
+        # Add trip notes if they exist
+        if trip.notes and trip.notes.strip():
+            story_elements.append(Paragraph(trip.notes, self.styles['Normal']))
+            story_elements.append(Spacer(1, 6))
+        else:
+            story_elements.append(Spacer(1, 6))
 
         def format_amount(amount):
             return f"£{amount:.2f}" if amount > 0 else ""
