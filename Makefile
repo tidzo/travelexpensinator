@@ -56,12 +56,6 @@ backend-test:
 frontend-test:
 	cd frontend && npm test
 
-# Database management
-db-migrate:
-	cd backend && alembic upgrade head
-
-db-revision:
-	cd backend && alembic revision --autogenerate -m "$(msg)"
 
 # Cleanup
 clean:

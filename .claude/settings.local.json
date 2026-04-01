@@ -1,8 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(alembic init migrations)",
-      "Bash(python -m alembic --version)",
       "Read(//Users/matt/**)",
       "Bash(sqlite3 data/app.db \"ALTER TABLE expense_items ADD COLUMN notes TEXT;\")",
       "Bash(sqlite3 data/app.db \"PRAGMA table_info(expense_items);\")",
@@ -17,7 +15,13 @@
       "Bash(python -c \"from app.services.pdf_service import PDFService; print(''PDF Service imports work'')\")",
       "Bash(python -c \"from PyPDF2 import PdfReader, PdfWriter; print(''PyPDF2 imports successfully'')\")",
       "Bash(npm uninstall @mui/x-date-pickers)",
-      "Bash(sed -n '446p' /Users/matt/travelexpensinator/frontend/src/components/LegsList.tsx)"
+      "Bash(sed -n '446p' /Users/matt/travelexpensinator/frontend/src/components/LegsList.tsx)",
+      "Bash(python -c \"from app.main import app; print(''Backend imports successfully without alembic'')\")",
+      "Bash(docker-compose ps)",
+      "Bash(curl -s http://localhost:8000/api/categories)",
+      "Bash(curl -s http://localhost:8000/)",
+      "Bash(curl -s http://localhost:8000/docs)",
+      "Bash(curl -s http://localhost:8000/api/trips)"
     ],
     "deny": [],
     "ask": []
