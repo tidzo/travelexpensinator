@@ -120,77 +120,82 @@ class PDFService:
         story.append(Paragraph(title, self.title_style))
         story.append(Spacer(1, 6))  # Reduced from 12
 
-        # Create a dictionary to group expenses by evidence item
-        evidence_groups = {}
+        # Track which evidence items have already been presented to avoid duplication
+        presented_evidence_ids = set()
+        evidence_count = 0
+
+        # Process expenses in the order they appear (preserving web report ordering)
+        # Present evidence items when first encountered
         for expense in expenses:
             for link in expense.evidence_links:
                 evidence_id = link.evidence_item.id
-                if evidence_id not in evidence_groups:
-                    evidence_groups[evidence_id] = {
-                        'evidence': link.evidence_item,
-                        'expenses': []
-                    }
-                evidence_groups[evidence_id]['expenses'].append(expense)
 
-        if not evidence_groups:
+                # Skip if this evidence item has already been presented
+                if evidence_id in presented_evidence_ids:
+                    continue
+
+                presented_evidence_ids.add(evidence_id)
+                evidence_count += 1
+
+                # Start each evidence item on a new page (except the first)
+                if evidence_count > 1:
+                    story.append(PageBreak())
+
+                evidence = link.evidence_item
+
+                # Collect all expenses linked to this evidence item, maintaining expense ordering
+                linked_expenses = []
+                seen_expense_ids = set()
+                for exp in expenses:
+                    if exp.id in seen_expense_ids:
+                        continue
+                    for exp_link in exp.evidence_links:
+                        if exp_link.evidence_item.id == evidence_id:
+                            linked_expenses.append(exp)
+                            seen_expense_ids.add(exp.id)
+                            break
+
+                # Create expense table showing all expenses linked to this evidence
+                expense_data = [['Date', 'Description', 'Amount']]
+                for linked_expense in linked_expenses:
+                    expense_data.append([
+                        linked_expense.date.strftime('%d/%m/%Y'),
+                        linked_expense.description,
+                        f"£{linked_expense.amount_gbp:.2f}"
+                    ])
+
+                expense_table = Table(expense_data, colWidths=[1*inch, 5.5*inch, 1*inch])
+                expense_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 3),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
+                ]))
+
+                story.append(expense_table)
+                story.append(Spacer(1, 12))
+
+                # Include the actual evidence file
+                try:
+                    # Handle both cases: file_path with or without 'uploads/' prefix
+                    if evidence.file_path.startswith('uploads/'):
+                        file_path = Path(evidence.file_path)
+                    else:
+                        file_path = Path("uploads") / evidence.file_path
+
+                    if file_path.exists():
+                        story.extend(self._embed_evidence_file(file_path, evidence.file_type))
+                    else:
+                        story.append(Paragraph(f"File not found: {evidence.file_path} (looked at: {file_path})", self.styles['Normal']))
+                except Exception as e:
+                    story.append(Paragraph(f"Error loading file: {str(e)}", self.styles['Normal']))
+
+        if evidence_count == 0:
             story.append(Paragraph("No evidence items found for this period.", self.styles['Normal']))
-            doc.build(story)
-            buffer.seek(0)
-            return buffer
-
-        # Sort evidence groups by upload date
-        sorted_evidence = sorted(evidence_groups.values(), key=lambda x: x['evidence'].upload_date)
-
-        # Process each evidence item
-        for i, evidence_group in enumerate(sorted_evidence):
-            # Always start each evidence item on a new page for clear organization
-            if i > 0:
-                story.append(PageBreak())  # Start each evidence item on a new page
-
-            evidence = evidence_group['evidence']
-
-            # Skip filename header to save space - evidence is identifiable by linked expenses
-
-            # Linked expenses table (simple format)
-            expense_data = [['Date', 'Description', 'Amount']]
-            for expense in sorted(evidence_group['expenses'], key=lambda x: x.date):
-                expense_data.append([
-                    expense.date.strftime('%d/%m/%Y'),
-                    expense.description,
-                    f"£{expense.amount_gbp:.2f}"
-                ])
-
-            expense_table = Table(expense_data, colWidths=[1*inch, 5.5*inch, 1*inch])  # Increased middle column due to wider page
-            expense_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),  # Reduced from 9
-                ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),  # Thinner grid lines
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('TOPPADDING', (0, 0), (-1, -1), 3),  # Reduced padding
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
-            ]))
-
-            story.append(expense_table)
-            story.append(Spacer(1, 12))  # Reduced from 20
-
-            # Include the actual evidence file
-            try:
-                # Handle both cases: file_path with or without 'uploads/' prefix
-                if evidence.file_path.startswith('uploads/'):
-                    # File path already includes uploads/ prefix
-                    file_path = Path(evidence.file_path)
-                else:
-                    # File path is relative to uploads directory
-                    file_path = Path("uploads") / evidence.file_path
-
-                if file_path.exists():
-                    story.extend(self._embed_evidence_file(file_path, evidence.file_type))
-                else:
-                    story.append(Paragraph(f"File not found: {evidence.file_path} (looked at: {file_path})", self.styles['Normal']))
-            except Exception as e:
-                story.append(Paragraph(f"Error loading file: {str(e)}", self.styles['Normal']))
 
         doc.build(story)
         buffer.seek(0)
