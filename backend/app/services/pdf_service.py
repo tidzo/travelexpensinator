@@ -1,5 +1,5 @@
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak, KeepTogether, CondPageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
@@ -97,7 +97,17 @@ class PDFService:
         if report_data['unlinked_expenses']:
             story.append(Paragraph("Other Expenses", self.styles['Heading2']))
             story.append(Spacer(1, 12))
-            story.append(self._create_expense_table(report_data['unlinked_expenses']))
+
+            # Apply orphan control for unlinked expenses table
+            unlinked_table = self._create_expense_table(report_data['unlinked_expenses'])
+            num_unlinked_rows = len(report_data['unlinked_expenses'])
+
+            if num_unlinked_rows <= 2:
+                # Small table - keep together with section header
+                story.append(KeepTogether([unlinked_table]))
+            else:
+                # Larger table - add normally with splitting enabled
+                story.append(unlinked_table)
 
         doc.build(story)
         buffer.seek(0)
@@ -178,7 +188,20 @@ class PDFService:
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
                 ]))
 
-                story.append(expense_table)
+                # Configure table splitting to prevent orphans
+                expense_table.splitByRow = True
+                expense_table.repeatRows = 1  # Repeat header row on each page
+
+                # For small tables (3 rows or fewer), try to keep together
+                # For larger tables, allow splitting but prevent orphans
+                num_data_rows = len(expense_data) - 1  # Subtract header row
+                if num_data_rows <= 2:
+                    # Small table - try to keep together with a conditional page break
+                    story.append(KeepTogether([expense_table]))
+                else:
+                    # Larger table - allow splitting but set minimum rows at bottom/top
+                    expense_table.minRowHeights = [None] * len(expense_data)
+                    story.append(expense_table)
                 story.append(Spacer(1, 12))
 
                 # Include the actual evidence file
@@ -401,8 +424,34 @@ class PDFService:
             ('VALIGN', (0, 0), (-1, -1), 'TOP')  # Align content to top of cells
         ]))
 
-        story_elements.append(table)
-        return story_elements
+        # Configure table splitting to prevent orphans
+        table.splitByRow = True
+        table.repeatRows = 1  # Repeat header row on each page
+
+        # Always keep trip title and notes with the table
+        num_data_rows = len(data) - 1  # Subtract header row
+
+        if num_data_rows <= 2:
+            # Small trip table - keep everything together (title, notes, and table)
+            return [KeepTogether(story_elements + [table])]
+        elif num_data_rows <= 5:
+            # Medium trip table - keep title/notes with table, but allow table to split if absolutely necessary
+            return [KeepTogether(story_elements + [table])]
+        else:
+            # Larger trip table - at minimum, keep title and notes with the table header and first row
+            # This prevents the title from being orphaned on a previous page
+            result = []
+
+            # Add a conditional page break before the trip section if there's not enough space
+            # for at least the title, any notes, and a few table rows
+            min_space_needed = 2 * inch  # Estimate space needed for title + header + 1-2 rows
+            result.append(CondPageBreak(min_space_needed))
+
+            # Add all story elements (title, notes, spacers) followed by the table
+            result.extend(story_elements)
+            result.append(table)
+
+            return result
 
     def _create_expense_table(self, expenses: List[ExpenseItem]) -> Table:
         def format_amount(amount):
@@ -434,6 +483,10 @@ class PDFService:
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('VALIGN', (0, 0), (-1, -1), 'TOP')  # Align content to top of cells
         ]))
+
+        # Configure table splitting to prevent orphans
+        table.splitByRow = True
+        table.repeatRows = 1  # Repeat header row on each page
 
         return table
 
