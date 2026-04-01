@@ -1,192 +1,138 @@
 # Travel Expense Manager
 
-A personal travel expense management web application for UK contractors to plan and record work trips and produce monthly expense reports with VAT calculations and PDF evidence binders.
+A comprehensive travel expense tracking and reporting application built with FastAPI (backend) and React with TypeScript (frontend).
 
 ## Features
 
-- **Trip Management**: Create and track business trips with automatic overnight expense calculations
-- **Expense Tracking**: Record expenses with automatic VAT calculations
-- **File Storage**: Upload and manage receipts and evidence files
-- **Monthly Reports**: Generate detailed expense reports with VAT breakdowns
-- **PDF Generation**: Create monthly reports and evidence binders as PDFs
-- **Mobile-Friendly**: Responsive design for mobile and desktop use
+### Core Functionality
+- **Trip Management**: Create and organize business trips with start/end dates and notes
+- **Journey Tracking**: Break trips into individual journeys with transport details
+- **Transport Legs**: Record specific transport segments (train, plane, taxi, etc.) with locations and notes
+- **Expense Tracking**: Comprehensive expense management with VAT calculations
+- **Evidence Management**: Upload and link receipts/evidence to expenses
+- **Monthly Reporting**: Generate detailed expense reports with VAT breakdowns
+- **PDF Generation**: Create professional PDF reports and evidence binders
 
-## Tech Stack
+### Expense Categories & VAT
+- Automatic VAT calculations based on category settings
+- Support for Standard Rated, Zero Rated, and Out of Scope VAT categories
+- Billable vs non-billable expense tracking
+- Smart categorization for common travel expenses
 
-### Backend
-- Python 3.12
-- FastAPI
-- SQLAlchemy ORM
-- Alembic migrations
-- SQLite (easily switchable to PostgreSQL)
-- Pydantic models
-- ReportLab for PDF generation
+### Navigation & UI
+- **Responsive Design**: Material-UI based interface optimized for mobile and desktop
+- **Date-based Navigation**: Month/year selectors for filtering data
+- **Bottom Navigation**: Quick access to main sections (Expenses, Locations, Reports)
+- **Smart Routing**: Intuitive URL structure for easy navigation
 
-### Frontend
-- React 18
-- TypeScript
-- Material UI
-- Vite
-- Mobile-responsive design
+## Technology Stack
 
-### Infrastructure
-- Docker & docker-compose
-- uv for fast Python dependency management
-- pyproject.toml for modern Python packaging
-- Pytest for testing
-- Black, Ruff, MyPy for code quality
+### Backend (FastAPI)
+- **FastAPI**: Modern, fast web framework for APIs
+- **SQLAlchemy**: Database ORM with SQLite for development
+- **ReportLab**: PDF generation for reports and evidence binders
+- **PyMuPDF**: PDF processing for evidence handling
+- **Pillow**: Image processing and optimization
+- **Uvicorn**: ASGI server for development
 
-## Quick Start
+### Frontend (React + TypeScript)
+- **React 18**: Modern React with hooks and functional components
+- **TypeScript**: Type-safe JavaScript for better development experience
+- **Material-UI**: Google Material Design component library
+- **React Router**: Client-side routing and navigation
+- **Vite**: Fast build tool and development server
+
+### File Structure
+```
+/backend           - FastAPI backend application
+  /app
+    /api           - API route handlers
+    /models        - SQLAlchemy database models
+    /services      - Business logic and services
+    /core          - Database configuration and utilities
+/frontend          - React TypeScript frontend
+  /src
+    /components    - Reusable React components
+    /pages         - Main application pages
+    /services      - API client and utilities
+    /contexts      - React context providers
+```
+
+## Key Pages & Features
+
+### Main Navigation
+- **Expenses** (`/expenses`): Unified view of all trips and other expenses with creation buttons
+- **Locations** (`/locations`): Manage frequently used locations
+- **Reports** (`/reports`): Generate comprehensive expense reports
+
+### Trip & Expense Management
+- **Trip Details** (`/expenses/trips/<id>`): Detailed trip view with journeys and expenses
+- **Unified Expense Creation**: Single dialog for all expense types with notes support
+- **Evidence Linking**: Upload receipts and link to multiple expenses
+- **Smart Categorization**: Automatic VAT calculation based on expense categories
+
+### Reporting & PDF Generation
+- **Combined PDF Reports**: Single document containing expenses summary and evidence binder
+- **Professional Layout**: Clean "Expenses Report: Month YYYY" format with Summary and Details sections
+- **Evidence Binder**: Embedded images and PDFs with smart deduplication and optimized scaling
+- **VAT Compliance**: Proper VAT breakdowns for UK business requirements
+- **Automated Naming**: Files download as `expenses_YYYY_MM_DD.pdf`
+
+## Setup & Development
 
 ### Prerequisites
-- Docker and docker-compose
-- Make (optional, for convenience commands)
-- For local development:
-  - Python 3.12+
-  - [uv](https://docs.astral.sh/uv/) for Python dependency management
-  - Node.js 18+ for frontend
+- Python 3.9+
+- Node.js 18+
+- npm or yarn
 
-### Using Docker (Recommended)
-
-1. Clone the repository
-2. Start the development environment:
-   ```bash
-   make dev
-   # or manually:
-   docker-compose build
-   docker-compose up -d
-   ```
-
-3. Access the applications:
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:8000
-   - API Documentation: http://localhost:8000/docs
-
-### Local Development
-
-#### Backend Setup with uv
+### Backend Setup
 ```bash
 cd backend
-
-# Install uv if not already installed
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Create virtual environment and install dependencies
-uv sync
-
-# For development dependencies (includes pytest, black, ruff, mypy)
-uv sync --dev
-
-# Run the development server
-uv run uvicorn app.main:app --reload
-
-# Run tests
-uv run pytest tests/ -v
-
-# Format code
-uv run black .
-
-# Lint code
-uv run ruff check .
-
-# Type checking
-uv run mypy app/
-```
-
-#### Alternative: Traditional pip setup
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8000
 ```
 
-#### Frontend Setup
+### Frontend Setup
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-## Available Commands
+### Database
+The application uses SQLite for data storage with automatic table creation. Database files are stored in `/backend/data/`.
 
-Use `make help` to see all available commands:
+## Usage
 
-**Docker Commands:**
-- `make build` - Build Docker containers
-- `make up` - Start services
-- `make down` - Stop services
-- `make logs` - Show logs
-- `make clean` - Clean up containers
+1. **Create Trips**: Add business trips with dates and notes via "Add Trip" button
+2. **Add Other Expenses**: Record standalone expenses via "Add other expense" button
+3. **Manage Trip Details**: Click on trips to add journeys, transport legs, and trip-specific expenses
+4. **Upload Evidence**: Attach receipts and documentation to any expense
+5. **Generate Reports**: Single "Generate Report PDF" button creates comprehensive expense reports
 
-**Development:**
-- `make install-backend-dev` - Install backend with dev dependencies
-- `make install-frontend` - Install frontend dependencies
-- `make dev` - Quick start development environment
+## Current System Architecture
 
-**Code Quality:**
-- `make test` - Run all tests
-- `make backend-test` - Run backend tests only
-- `make format` - Format code with Black
-- `make lint` - Lint code with Ruff
-- `make typecheck` - Type check with MyPy
+### Unified Expenses View
+- Single `/expenses` page replaces separate trips and expenses pages
+- Shows both trips and standalone "Other Expenses" in one view
+- Dual action buttons: "Add Trip" and "Add other expense"
 
-## Database Schema
+### Streamlined Navigation
+- Three-tab bottom navigation: **Expenses** | **Locations** | **Reports**
+- Trip details accessible via `/expenses/trips/<id>`
+- Date selectors persist across pages for month/year filtering
 
-The application follows a domain-driven design with the following key entities:
+### Enhanced PDF Generation
+- Single combined PDF with expenses summary followed by evidence binder
+- Optimized evidence scaling for maximum page utilization
+- Professional formatting with Summary and Details sections
+- Automatic file naming with current date
 
-- **Trip**: Business trips with start/end dates
-- **Journey**: Daily travel within a trip
-- **Leg**: Individual transport segments
-- **ExpenseItem**: Individual expenses with VAT calculations
-- **ExpenseCategory**: Categorization with VAT status
-- **Location**: Reusable locations (offices, hotels, stations)
-- **EvidenceItem**: Uploaded files and receipts
+## Recent Updates
 
-## Business Logic
-
-### Overnight Expenses
-- Automatically calculated based on trip duration
-- £5.00 per night (configurable)
-- Marked as "Out of Scope" for VAT
-
-### VAT Calculations
-- Standard rate: 20% VAT
-- Automatic ex-VAT and VAT amount calculations
-- Support for zero-rated and out-of-scope expenses
-
-### File Storage
-- Organized by year/month structure
-- Human-readable filenames with dates
-- Abstracted storage layer (ready for S3 migration)
-
-## Testing
-
-```bash
-# Run all tests
-make test
-
-# Backend tests only
-cd backend && python -m pytest tests/ -v
-```
-
-## Architecture Notes
-
-- **Domain-Driven Design**: Clean separation between domain logic and infrastructure
-- **Service Layer**: Business logic encapsulated in service classes
-- **Storage Abstraction**: File storage abstracted for future cloud migration
-- **API-First**: REST API with automatic OpenAPI documentation
-- **Type Safety**: Full TypeScript on frontend, Pydantic models on backend
-
-## Future Enhancements
-
-- Email parsing for automatic expense extraction
-- Multi-user support with authentication
-- AWS hosting with S3 storage
-- Real-time synchronization
-- Advanced reporting and analytics
-
-## License
-
-This project is ready to be open-sourced when needed.
+- Consolidated trip and expense management into unified `/expenses` page
+- Removed redundant navigation tabs, focusing on core expense workflow
+- Implemented combined PDF generation with enhanced evidence layout
+- Added comprehensive notes support throughout expense management
+- Improved evidence ordering and deduplication in reports
+- Streamlined user interface with focus on essential expense tracking features

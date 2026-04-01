@@ -9,6 +9,20 @@ A UK contractor travel expense management application with:
 - **Frontend**: React + TypeScript + Material UI
 - **Domain**: Travel expense tracking with VAT calculations and PDF reporting
 
+## Current System Architecture (Updated)
+
+### Unified Interface Design
+- **Single Expenses Page**: `/expenses` replaces separate `/trips` and `/expenses` pages
+- **Dual Action Buttons**: "Add Trip" and "Add other expense" on main expenses page
+- **Three-Tab Navigation**: Expenses | Locations | Reports (trips tab removed)
+- **Trip Details Route**: `/expenses/trips/<id>` for individual trip management
+
+### Core Navigation Flow
+1. `/expenses` - Main page showing trips and other expenses with creation buttons
+2. `/expenses/trips/<id>` - Trip detail page with journeys and trip-specific expenses
+3. `/locations` - Location management
+4. `/reports` - Combined PDF report generation
+
 ## Architecture & Design Patterns
 
 ### Domain-Driven Design Structure
@@ -27,6 +41,7 @@ backend/app/
 2. **Overnight Expenses**: £5.00 per night automatically generated for trips
 3. **File Storage**: Organized by `uploads/YYYY/MM/filename` structure
 4. **Expense Constraints**: Must belong to trip, journey, leg, OR be monthly expense
+5. **Evidence Scaling**: Combined PDF uses additional 10% reduction for images
 
 ## Core Domain Models
 
@@ -40,58 +55,95 @@ ExpenseCategory → ExpenseItem
 ```
 
 ### Critical Database Constraints
-- ExpenseItem MUST have `category_id`, `amount_gbp`, `date`
+- ExpenseItem MUST have `category_id`, `amount_gbp`, `date`, `notes` (optional)
 - ExpenseItem MUST have at least one of: `trip_id`, `journey_id`, `leg_id`, OR `is_monthly_expense=true`
 - Deleting Trip cascades to Journeys, Legs, and ExpenseItems but NOT EvidenceItems
+- Notes field added to ExpenseItem model for enhanced expense descriptions
 
 ## Service Layer Business Logic
 
-### TripService
-- **create_trip()**: Automatically creates overnight expenses (£5/night)
-- **update_trip()**: Recalculates overnight expenses if dates change
-- Location: `app/services/trip_service.py:32`
-
-### ExpenseService
+### ExpenseService (Enhanced)
 - **create_expense()**: Auto-calculates VAT amounts based on category
 - **get_monthly_report()**: Groups expenses by trip + unlinked expenses
+- **get_expense_description_with_notes()**: Combines expense and leg notes for reporting
 - Location: `app/services/expense_service.py:15`
+
+### PDFService (Major Update)
+- **generate_monthly_report()**: Creates standard monthly report PDFs
+- **generate_evidence_binder()**: Creates evidence table of contents
+- **generate_combined_report()**: NEW - Creates single PDF with monthly report + evidence binder
+- **_embed_evidence_file_scaled()**: NEW - Evidence embedding with additional 10% scaling
+- Location: `app/services/pdf_service.py:12`
 
 ### VATCalculator
 - **calculate_vat_amounts()**: 20% VAT for STANDARD, 0% for others
 - Location: `app/services/vat_calculator.py:7`
 
-### PDFService
-- **generate_monthly_report()**: Creates expense report PDFs
-- **generate_evidence_binder()**: Creates evidence table of contents
-- Location: `app/services/pdf_service.py:12`
-
 ## API Endpoints Structure
 
-### Main Routes
+### Main Routes (Updated)
 - `/api/trips` - Trip CRUD operations
 - `/api/expenses` - Expense CRUD + monthly reports
 - `/api/locations` - Location management
 - `/api/files` - File upload/management
 - `/api/reports` - PDF generation endpoints
 
-### Key Endpoints
+### Key Endpoints (Updated)
 - `GET /api/expenses/reports/monthly?month=X&year=Y` - Monthly report data
-- `GET /api/reports/monthly/pdf?month=X&year=Y` - PDF monthly report
+- `GET /api/reports/monthly/pdf?month=X&year=Y` - PDF monthly report (legacy)
+- `GET /api/reports/evidence-binder/pdf?month=X&year=Y` - PDF evidence binder (legacy)
+- `GET /api/reports/combined/pdf?month=X&year=Y` - NEW Combined PDF report
 - `POST /api/files/upload` - File upload with automatic naming
 
-## Frontend Architecture
+## Frontend Architecture (Streamlined)
 
-### Page Structure
-- `TripsList.tsx` - Trip management with duration chips
-- `ExpensesList.tsx` - Expense listing with VAT display
-- `MonthlyReport.tsx` - Report view with PDF generation
-- `Navigation.tsx` - Bottom navigation (mobile-friendly)
+### Page Structure (Updated)
+- `TripsList.tsx` - Unified expenses view showing trips and other expenses
+- `TripDetail.tsx` - Individual trip management (route: `/expenses/trips/<id>`)
+- `MonthlyReport.tsx` - Report view with single "Generate Report PDF" button
+- `Navigation.tsx` - Three-tab bottom navigation (Expenses, Locations, Reports)
+- `ExpenseDialog.tsx` - Shared component for all expense creation/editing
 
-### Key Features
-- Material UI responsive design
-- Mobile-first bottom navigation
+### Key Features (Updated)
+- Single expenses page with dual creation buttons
+- Consolidated expense notes support throughout application
+- Material UI responsive design optimized for expense workflow
+- Mobile-first bottom navigation with streamlined tabs
 - Automatic currency formatting (GBP)
-- File upload integration
+- File upload integration with evidence linking
+
+### Component Integration
+- **ExpenseDialog**: Shared between TripsList and TripDetail for consistent UX
+- **Navigation**: Removed trips tab, consolidated to expenses-focused workflow
+- **TripsList**: Now shows "Expenses in Month Year" and contains both trips and other expenses
+- **MonthlyReport**: Single PDF button replaces separate monthly/evidence buttons
+
+## Enhanced PDF Generation System
+
+### Combined PDF Architecture
+```javascript
+// Frontend: Single button generates combined report
+handleGenerateCombinedPDF() → /api/reports/combined/pdf
+
+// Backend: Combined PDF generation
+generate_combined_report() {
+  monthly_report_content +
+  page_break +
+  evidence_binder_content_with_scaling
+}
+```
+
+### PDF Content Structure
+1. **Title**: "Expenses Report: Month YYYY"
+2. **Summary**: VAT breakdown table (no billable/non-billable line)
+3. **Details**: Trip expenses and other expenses
+4. **Evidence Binder**: Embedded images/PDFs with 10% additional scaling
+
+### Evidence Optimization
+- **Scaling**: Base 10% reduction + additional 10% for combined reports (19% total reduction)
+- **Margins**: Standard document margins for professional appearance
+- **Deduplication**: Smart evidence ordering prevents duplicate presentation
+- **File Types**: Support for images (PNG, JPG) and PDFs with quality optimization
 
 ## Development Environment
 
@@ -112,136 +164,91 @@ make test               # Run tests
 make clean              # Clean up
 ```
 
-### Dependencies
-- **Runtime**: FastAPI, SQLAlchemy, Alembic, Pydantic, ReportLab
+### Dependencies (Updated)
+- **Runtime**: FastAPI, SQLAlchemy, Alembic, Pydantic, ReportLab, PyMuPDF, Pillow
 - **Dev**: pytest, black, ruff, mypy
-- **Frontend**: React, TypeScript, Material UI, Vite
+- **Frontend**: React, TypeScript, Material UI, Vite, React Router
 
-## Database Migrations
+## Database Schema (Enhanced)
 
-### Alembic Setup
-- Config: `backend/alembic.ini`
-- Migrations: `backend/migrations/versions/`
-- Models import: All models in `app/models/__init__.py`
+### Recent Schema Updates
+- **ExpenseItem.notes**: Added optional text field for expense notes
+- **Expense Description Enhancement**: Service layer combines expense notes with leg notes
+- **Evidence Linking**: Maintains existing many-to-many relationship structure
 
-### Common Migration Tasks
-```bash
-cd backend
-uv run alembic revision --autogenerate -m "description"
-uv run alembic upgrade head
-```
+### Migration Handling
+- Manual SQL execution required for adding columns to existing SQLite databases
+- Database files: `/backend/data/app.db` (main) and `/frontend/data/app.db` (backup/legacy)
 
-## File Storage System
+## Testing Strategy (Updated Focus Areas)
 
-### Local Storage Implementation
-- Base path: `uploads/`
-- Structure: `uploads/YYYY/MM/filename`
-- Naming: `{type}_{YYYY_MM_DD}_{description}.ext`
-- Abstraction: `app/storage/storage_interface.py`
-
-### Evidence File Types
-Auto-detected from filename: train, hotel, meal, taxi, flight, expense
-
-## Testing Strategy
-
-### Test Structure
-- `tests/conftest.py` - Test database setup
-- `tests/test_vat_calculator.py` - VAT calculation tests
-- `tests/test_trip_service.py` - Business logic tests
-- `tests/test_api.py` - API endpoint tests
-
-### Critical Tests
+### Critical Tests (Updated)
+- Combined PDF generation functionality
+- Evidence scaling and embedding in reports
+- Expense notes integration throughout system
+- Unified expenses page functionality
+- Navigation flow between expenses and trip details
 - VAT calculations (various rates and rounding)
-- Overnight expense generation
-- Trip date changes recalculating expenses
-- File upload and storage
+- File upload and evidence linking
 
-## Common Tasks for Agents
+### Test Coverage Areas
+- PDF service combined report generation
+- Expense service notes integration
+- Frontend component integration (ExpenseDialog shared usage)
+- Navigation routing for updated URL structure
 
-### Adding New Features
-1. **Model Changes**: Update SQLAlchemy models + Pydantic schemas
-2. **Business Logic**: Add to appropriate service class
-3. **API**: Create/update FastAPI routes
-4. **Frontend**: Add React components/pages
-5. **Tests**: Add comprehensive test coverage
+## Common Tasks for Agents (Updated)
 
-### Debugging Issues
-1. **Check logs**: `make logs` or check individual service logs
-2. **Database state**: Connect to SQLite and inspect tables
-3. **API testing**: Use `/docs` endpoint for manual testing
-4. **File uploads**: Check `uploads/` directory structure
+### Current System Modifications
+1. **PDF Enhancements**: Modify `generate_combined_report()` for layout changes
+2. **UI Improvements**: Update TripsList.tsx for expenses page functionality
+3. **Evidence Optimization**: Adjust scaling factors in `_embed_evidence_file_scaled()`
+4. **Navigation Updates**: Modify Navigation.tsx for tab structure changes
+5. **Database Updates**: Handle expense notes field and related functionality
 
-### Database Schema Changes
-1. Update model in `app/models/`
-2. Generate migration: `uv run alembic revision --autogenerate -m "description"`
-3. Review generated migration
-4. Apply: `uv run alembic upgrade head`
-5. Update Pydantic schemas if needed
+### Debugging Current System
+1. **PDF Generation Issues**: Check combined PDF endpoint and scaling functions
+2. **Navigation Problems**: Verify route changes from `/trips` to `/expenses/trips/<id>`
+3. **Expense Creation**: Debug ExpenseDialog integration across different contexts
+4. **Evidence Display**: Check evidence scaling and embedding in combined reports
 
-### Performance Monitoring
-- Watch for N+1 queries in SQLAlchemy relationships
-- Monitor file upload sizes and storage usage
-- Check PDF generation performance for large reports
+## Security Considerations (Current State)
 
-## Security Considerations
-
-### Current Implementation
+### Implemented Security
 - CORS configured for localhost development
 - File upload validation by type
 - SQL injection protection via SQLAlchemy ORM
 - No authentication (single-user system)
 
-### Future Security Enhancements
-- Add authentication/authorization for multi-user
-- Implement file upload size limits
-- Add input validation for file types
-- Secure file serving for production
+### Evidence File Security
+- File path validation for evidence embedding
+- Error handling for missing or corrupted evidence files
+- Safe file type detection and processing
 
-## Deployment Notes
+## Key System Changes Made
 
-### Docker Production
-- Multi-stage builds for smaller images
-- Environment variable configuration
-- PostgreSQL for production database
-- Proper logging and monitoring
+### Navigation Simplification
+- Removed `/trips` route entirely
+- Consolidated to `/expenses` as main entry point
+- Updated trip details route to `/expenses/trips/<id>`
+- Reduced navigation tabs from 4 to 3
 
-### AWS Deployment Preparation
-- Storage abstraction ready for S3
-- Database easily switchable to RDS
-- Environment-based configuration
-- API ready for load balancing
+### PDF Generation Revolution
+- Combined monthly report and evidence binder into single document
+- Implemented professional "Expenses Report" formatting
+- Added optimized evidence scaling for space efficiency
+- Automatic date-based file naming
 
-## Troubleshooting Common Issues
+### User Experience Enhancements
+- Dual action buttons for trip and expense creation
+- Unified expense notes support throughout application
+- Streamlined interface focusing on core expense workflow
+- Enhanced evidence management with better scaling
 
-### Database Issues
-- **Migration conflicts**: Check `alembic_version` table
-- **Foreign key errors**: Verify relationship integrity
-- **Missing tables**: Run `alembic upgrade head`
+### Backend Service Evolution
+- Enhanced ExpenseService with notes integration
+- Advanced PDFService with combined report generation
+- Improved evidence file handling and optimization
+- Maintained backward compatibility for existing functionality
 
-### File Upload Issues
-- **Permission errors**: Check `uploads/` directory permissions
-- **Path issues**: Verify directory structure creation
-- **File naming**: Check auto-generation logic
-
-### VAT Calculation Issues
-- **Rounding errors**: Verify Decimal precision in calculations
-- **Category VAT status**: Check expense category configuration
-- **Overnight expenses**: Verify trip date calculations
-
-## Extensions and Future Features
-
-### Ready for Implementation
-1. **Multi-user support**: Add user authentication and data isolation
-2. **Email parsing**: Extract expenses from email receipts
-3. **S3 storage**: Replace local storage with cloud storage
-4. **Advanced reporting**: Additional report types and analytics
-5. **API versioning**: Prepare for breaking changes
-
-### Architecture Decisions
-- Service layer pattern for business logic
-- Repository pattern not used (direct SQLAlchemy access)
-- File storage abstracted for future S3 migration
-- React SPA with API-first backend
-- Mobile-first responsive design
-
-This guide should help any AI agent understand and effectively work with this travel expense management system.
+This guide reflects the current state of the travel expense management system after recent major updates focusing on user experience streamlining and enhanced PDF reporting capabilities.
