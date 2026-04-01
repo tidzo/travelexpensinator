@@ -41,6 +41,7 @@ function ExpenseDialog({
     category_id: initialData?.categoryId || (categories[0]?.id || 1),
     date: initialData?.date || new Date().toISOString().split('T')[0],
     description: '',
+    notes: '',
     amount_gbp: '',
     is_billable: true,
     trip_id: initialData?.tripId,
@@ -56,6 +57,7 @@ function ExpenseDialog({
           category_id: editingExpense.category_id,
           date: editingExpense.date.toString(),
           description: editingExpense.description,
+          notes: editingExpense.notes || '',
           amount_gbp: editingExpense.amount_gbp.toString(),
           is_billable: editingExpense.is_billable,
           trip_id: editingExpense.trip_id,
@@ -72,6 +74,7 @@ function ExpenseDialog({
           journey_id: initialData.journeyId,
           leg_id: initialData.legId,
           description: '',
+          notes: '',
           amount_gbp: ''
         }));
       }
@@ -116,6 +119,7 @@ function ExpenseDialog({
       category_id: categories[0]?.id || 1,
       date: new Date().toISOString().split('T')[0],
       description: '',
+      notes: '',
       amount_gbp: '',
       is_billable: true,
       trip_id: undefined,
@@ -137,6 +141,18 @@ function ExpenseDialog({
           variant="outlined"
           value={expense.description}
           onChange={(e) => setExpense({ ...expense, description: e.target.value })}
+          sx={{ mb: 2 }}
+        />
+
+        <TextField
+          margin="dense"
+          label="Notes (Optional)"
+          fullWidth
+          variant="outlined"
+          multiline
+          rows={2}
+          value={expense.notes}
+          onChange={(e) => setExpense({ ...expense, notes: e.target.value })}
           sx={{ mb: 2 }}
         />
 

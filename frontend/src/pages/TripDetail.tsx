@@ -489,9 +489,16 @@ function TripDetail() {
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           {getCategoryIcon(categories.find(c => c.id === expense.category_id)?.name || '')}
-                          <Typography variant="body1">
-                            {expense.description}
-                          </Typography>
+                          <Box>
+                            <Typography variant="body1">
+                              {expense.description}
+                            </Typography>
+                            {expense.notes && (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                {expense.notes}
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
                       }
                       secondary={

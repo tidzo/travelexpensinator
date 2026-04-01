@@ -15,24 +15,16 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import { Add, Edit, Delete, AttachFile, AttachmentOutlined, Link, Restaurant, Hotel, DirectionsTransit } from '@mui/icons-material';
 import { ExpenseItem, Trip, Journey, Leg, Location, ExpenseCategory, EvidenceItem } from '../types';
 import { api } from '../services/api';
 import { useDateContext } from '../contexts/DateContext';
+import ExpenseDialog from '../components/ExpenseDialog';
 
 function ExpensesList() {
   const { selectedMonth, selectedYear } = useDateContext();
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [journeys, setJourneys] = useState<Journey[]>([]);
-  const [legs, setLegs] = useState<Leg[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -48,33 +40,14 @@ function ExpensesList() {
   const [evidenceLinkedExpenses, setEvidenceLinkedExpenses] = useState<ExpenseItem[]>([]);
   const [availableExpensesForEvidence, setAvailableExpensesForEvidence] = useState<ExpenseItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [newExpense, setNewExpense] = useState({
-    category_id: 1, // Default to first category
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-    notes: '',
-    amount_gbp: '',
-    is_billable: true,
-    trip_id: undefined as number | undefined,
-    journey_id: undefined as number | undefined,
-    leg_id: undefined as number | undefined
-  });
 
   const loadData = async () => {
     try {
-      const [expensesData, tripsData, journeysData, legsData, locationsData, categoriesData] = await Promise.all([
+      const [expensesData, categoriesData] = await Promise.all([
         api.get<ExpenseItem[]>(`/expenses?month=${selectedMonth}&year=${selectedYear}`),
-        api.get<Trip[]>('/trips'),
-        api.get<Journey[]>('/journeys'),
-        api.get<Leg[]>('/legs'),
-        api.get<Location[]>('/locations'),
         api.get<ExpenseCategory[]>('/expense-categories')
       ]);
       setExpenses(expensesData);
-      setTrips(tripsData);
-      setJourneys(journeysData);
-      setLegs(legsData);
-      setLocations(locationsData);
       setCategories(categoriesData);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -314,65 +287,24 @@ function ExpensesList() {
     }
   };
 
-  const handleCreateExpense = async () => {
-    try {
-      if (editingExpense) {
-        // Update existing expense
-        const updatedExpense = await api.put<ExpenseItem>(`/expenses/${editingExpense.id}`, {
-          category_id: newExpense.category_id,
-          date: newExpense.date,
-          description: newExpense.description,
-          notes: newExpense.notes || null,
-          amount_gbp: parseFloat(newExpense.amount_gbp),
-          is_billable: newExpense.is_billable
-        });
-        setExpenses(expenses.map(expense =>
-          expense.id === editingExpense.id ? updatedExpense : expense
-        ));
-      } else {
-        // Create new expense
-        const expense = await api.post<ExpenseItem>('/expenses', {
-          ...newExpense,
-          amount_gbp: parseFloat(newExpense.amount_gbp)
-        });
-        setExpenses([...expenses, expense]);
-      }
-      handleCloseDialog();
-    } catch (error) {
-      console.error('Failed to save expense:', error);
-    }
-  };
-
   const handleEditExpense = (expense: ExpenseItem) => {
     setEditingExpense(expense);
-    setNewExpense({
-      category_id: expense.category_id,
-      date: expense.date,
-      description: expense.description,
-      notes: expense.notes || '',
-      amount_gbp: expense.amount_gbp.toString(),
-      is_billable: expense.is_billable,
-      trip_id: expense.trip_id,
-      journey_id: expense.journey_id,
-      leg_id: expense.leg_id
-    });
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingExpense(null);
-    setNewExpense({
-      category_id: 1,
-      date: new Date().toISOString().split('T')[0],
-      description: '',
-      notes: '',
-      amount_gbp: '',
-      is_billable: true,
-      trip_id: undefined,
-      journey_id: undefined,
-      leg_id: undefined
-    });
+  };
+
+  const handleExpenseCreated = (expense: ExpenseItem) => {
+    if (editingExpense) {
+      // Update existing expense in list
+      setExpenses(expenses.map(e => e.id === expense.id ? expense : e));
+    } else {
+      // Add new expense to list
+      setExpenses([...expenses, expense]);
+    }
   };
 
   if (loading) {
@@ -443,9 +375,16 @@ function ExpensesList() {
                 <ListItemText
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="h6">
-                        {expense.description}
-                      </Typography>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="h6">
+                          {expense.description}
+                        </Typography>
+                        {expense.notes && (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            {expense.notes}
+                          </Typography>
+                        )}
+                      </Box>
                       <Typography variant="h6" color="primary">
                         {formatCurrency(expense.amount_gbp)}
                       </Typography>
@@ -504,163 +443,16 @@ function ExpensesList() {
         <Add />
       </Fab>
 
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Description"
-            fullWidth
-            variant="outlined"
-            value={newExpense.description}
-            onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            label="Notes (Optional)"
-            fullWidth
-            variant="outlined"
-            multiline
-            rows={2}
-            value={newExpense.notes}
-            onChange={(e) => setNewExpense({ ...newExpense, notes: e.target.value })}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            label="Amount (GBP)"
-            type="number"
-            step="0.01"
-            fullWidth
-            variant="outlined"
-            value={newExpense.amount_gbp}
-            onChange={(e) => setNewExpense({ ...newExpense, amount_gbp: e.target.value })}
-            sx={{ mb: 2 }}
-          />
-
-          <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={newExpense.category_id}
-              onChange={(e) => setNewExpense({ ...newExpense, category_id: Number(e.target.value) })}
-              label="Category"
-            >
-              {categories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name} ({category.vat_status})
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <TextField
-            margin="dense"
-            label="Date"
-            type="date"
-            fullWidth
-            variant="outlined"
-            value={newExpense.date}
-            onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
-            InputLabelProps={{ shrink: true }}
-            sx={{ mb: 2 }}
-          />
-
-          <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
-            <InputLabel>Trip (Optional)</InputLabel>
-            <Select
-              value={newExpense.trip_id || ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                const tripId = value === '' ? undefined : Number(value);
-                setNewExpense({
-                  ...newExpense,
-                  trip_id: tripId,
-                  journey_id: undefined,
-                  leg_id: undefined
-                });
-              }}
-              label="Trip (Optional)"
-            >
-              <MenuItem value="">None</MenuItem>
-              {trips.map((trip) => (
-                <MenuItem key={trip.id} value={trip.id}>
-                  Trip {trip.id} ({trip.start_date} - {trip.end_date})
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {newExpense.trip_id && (
-            <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
-              <InputLabel>Journey (Optional)</InputLabel>
-              <Select
-                value={newExpense.journey_id || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  const journeyId = value === '' ? undefined : Number(value);
-                  setNewExpense({
-                    ...newExpense,
-                    journey_id: journeyId,
-                    leg_id: undefined
-                  });
-                }}
-                label="Journey (Optional)"
-              >
-                <MenuItem value="">None</MenuItem>
-                {journeys
-                  .filter(journey => journey.trip_id === newExpense.trip_id)
-                  .map((journey) => (
-                    <MenuItem key={journey.id} value={journey.id}>
-                      {journey.date} - {journey.description || 'Journey'}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {newExpense.journey_id && (
-            <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
-              <InputLabel>Transport Leg (Optional)</InputLabel>
-              <Select
-                value={newExpense.leg_id || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setNewExpense({ ...newExpense, leg_id: value === '' ? undefined : Number(value) });
-                }}
-                label="Transport Leg (Optional)"
-              >
-                <MenuItem value="">None</MenuItem>
-                {legs
-                  .filter(leg => leg.journey_id === newExpense.journey_id)
-                  .map((leg) => {
-                    const originLocation = locations.find(loc => loc.id === leg.origin_location_id);
-                    const destLocation = locations.find(loc => loc.id === leg.destination_location_id);
-                    const originName = originLocation?.name || `Location ${leg.origin_location_id}`;
-                    const destName = destLocation?.name || `Location ${leg.destination_location_id}`;
-                    return (
-                      <MenuItem key={leg.id} value={leg.id}>
-                        {leg.mode_of_transport}: {originName} → {destName}
-                      </MenuItem>
-                    );
-                  })}
-              </Select>
-            </FormControl>
-          )}
-
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button
-            onClick={handleCreateExpense}
-            variant="contained"
-            disabled={!newExpense.description || !newExpense.amount_gbp}
-          >
-            {editingExpense ? 'Update Expense' : 'Create Expense'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ExpenseDialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        categories={categories}
+        editingExpense={editingExpense}
+        initialData={{
+          date: new Date().toISOString().split('T')[0]
+        }}
+        onExpenseCreated={handleExpenseCreated}
+      />
 
       {/* Evidence viewing dialog */}
       <Dialog
