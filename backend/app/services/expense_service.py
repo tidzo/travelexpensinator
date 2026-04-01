@@ -21,8 +21,13 @@ class ExpenseService:
         if not category:
             raise ValueError(f"Category {expense_data.category_id} not found")
 
+        # Ensure amount is Decimal for VAT calculation
+        amount_gbp = expense_data.amount_gbp
+        if not isinstance(amount_gbp, Decimal):
+            amount_gbp = Decimal(str(amount_gbp))
+
         ex_vat_amount, vat_amount = VATCalculator.calculate_vat_amounts(
-            expense_data.amount_gbp, category.vat_status
+            amount_gbp, category.vat_status
         )
 
         # Convert to dict and check if this should be a monthly expense
@@ -60,6 +65,9 @@ class ExpenseService:
                 raise ValueError(f"Category {category_id} not found")
 
             amount = update_data.get("amount_gbp", expense.amount_gbp)
+            # Ensure amount is Decimal for VAT calculation
+            if not isinstance(amount, Decimal):
+                amount = Decimal(str(amount))
             ex_vat_amount, vat_amount = VATCalculator.calculate_vat_amounts(
                 amount, category.vat_status
             )

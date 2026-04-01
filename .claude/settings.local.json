@@ -3,7 +3,14 @@
     "allow": [
       "Bash(alembic init migrations)",
       "Bash(python -m alembic --version)",
-      "Read(//Users/matt/**)"
+      "Read(//Users/matt/**)",
+      "Bash(sqlite3 data/app.db \"ALTER TABLE expense_items ADD COLUMN notes TEXT;\")",
+      "Bash(sqlite3 data/app.db \"PRAGMA table_info(expense_items);\")",
+      "Bash(find /Users/matt/travelexpensinator -name \"app.db\" -exec ls -la {} ;)",
+      "Bash(sqlite3 data/app.db \"SELECT id, description, notes FROM expense_items WHERE notes IS NOT NULL AND notes != '''';\")",
+      "Bash(sqlite3 data/app.db \"SELECT id, description, notes FROM expense_items LIMIT 5;\")",
+      "Bash(sqlite3 data/app.db \"UPDATE expense_items SET notes = ''Test note for debugging'' WHERE id = 1;\")",
+      "Bash(sqlite3 data/app.db \"SELECT id, description, notes FROM expense_items WHERE id = 1;\")"
     ],
     "deny": [],
     "ask": []

@@ -61,6 +61,7 @@ def list_expenses(
             'category_id': expense.category_id,
             'date': expense.date,
             'description': expense.description,
+            'notes': expense.notes,
             'amount_gbp': expense.amount_gbp,
             'ex_vat_amount': expense.ex_vat_amount,
             'vat_amount': expense.vat_amount,
@@ -110,6 +111,8 @@ async def update_expense(expense_id: int, request: Request, db: Session = Depend
                 existing_expense.date = data['date']
         if 'description' in data:
             existing_expense.description = data['description']
+        if 'notes' in data:
+            existing_expense.notes = data['notes']
         if 'amount_gbp' in data:
             existing_expense.amount_gbp = data['amount_gbp']
         if 'is_billable' in data:
@@ -117,10 +120,15 @@ async def update_expense(expense_id: int, request: Request, db: Session = Depend
 
         # Recalculate VAT
         from app.services.vat_calculator import VATCalculator
+        from decimal import Decimal
         category = db.query(ExpenseCategory).filter(ExpenseCategory.id == existing_expense.category_id).first()
         if category:
+            # Ensure amount_gbp is Decimal for VAT calculation
+            amount_gbp = existing_expense.amount_gbp
+            if not isinstance(amount_gbp, Decimal):
+                amount_gbp = Decimal(str(amount_gbp))
             ex_vat_amount, vat_amount = VATCalculator.calculate_vat_amounts(
-                existing_expense.amount_gbp, category.vat_status
+                amount_gbp, category.vat_status
             )
             existing_expense.ex_vat_amount = ex_vat_amount
             existing_expense.vat_amount = vat_amount
