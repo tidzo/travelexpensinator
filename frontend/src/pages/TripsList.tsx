@@ -17,7 +17,7 @@ import {
   Button,
   TextField,
 } from '@mui/material';
-import { Add, Edit, Delete } from '@mui/icons-material';
+import { Add, Edit, Delete, DirectionsTransit } from '@mui/icons-material';
 import { Trip } from '../types';
 import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -95,6 +95,10 @@ function TripsList() {
     return nights === 1 ? '1 night' : `${nights} nights`;
   };
 
+  const getMonthName = (month: number) => {
+    return new Date(0, month - 1).toLocaleString('en-GB', { month: 'long' });
+  };
+
   const handleCreateTrip = async () => {
     try {
       if (editingTrip) {
@@ -139,8 +143,18 @@ function TripsList() {
   return (
     <Box sx={{ pb: 8 }}>
       <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-        My Trips
+        Trips in {getMonthName(selectedMonth)} {selectedYear}
       </Typography>
+
+      <Button
+        variant="outlined"
+        size="small"
+        startIcon={<DirectionsTransit />}
+        onClick={() => setDialogOpen(true)}
+        sx={{ mb: 3 }}
+      >
+        Add Trip
+      </Button>
 
       {trips.length === 0 ? (
         <Card>
