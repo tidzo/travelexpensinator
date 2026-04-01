@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(docker-compose restart backend frontend)"
+      "Bash(docker-compose exec backend python -c \"\nfrom app.core.database import SessionLocal\nfrom app.services.expense_service import ExpenseService\n\ndb = SessionLocal()\nservice = ExpenseService(db)\n\n# Test the monthly report for March 2026\nreport = service.get_monthly_report(3, 2026)\n\nprint(''Trip expenses with enhanced descriptions:'')\nfor trip_group in report[''trip_expenses'']:\n    trip = trip_group[''trip'']\n    print(f''Trip {trip.id}: {trip.start_date} to {trip.end_date}'')\n    for expense in trip_group[''expenses'']:\n        print(f''  Expense {expense.id}: \"\"{expense.description}\"\"'')\n        if expense.leg_id:\n            print(f''    (linked to leg {expense.leg_id})'')\n\ndb.close()\n\")"
     ],
     "deny": [],
     "ask": []

@@ -56,6 +56,24 @@ class PDFService:
             spaceBefore=0,
         )
 
+    def _format_description_with_notes(self, description: str) -> Any:
+        """Format expense description, making notes (after newline) italic if present"""
+        if '\n' in description:
+            # Split main description and notes
+            parts = description.split('\n', 1)
+            main_desc = parts[0]
+            notes = parts[1]
+
+            # Create formatted description with italic notes
+            formatted_desc = f"{main_desc}<br/><i>{notes}</i>"
+            return Paragraph(formatted_desc, self.description_style)
+        else:
+            # No notes, handle normal word wrapping
+            if len(description) > 35:
+                return Paragraph(description, self.description_style)
+            else:
+                return description
+
     def generate_monthly_report(self, report_data: Dict[str, Any]) -> BytesIO:
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -351,12 +369,8 @@ class PDFService:
 
         data = [['Date', 'Description', 'Net (ex VAT)', 'VAT', 'Gross (Paid)']]
         for expense in expenses:
-            # Wrap long descriptions in Paragraph for proper word wrapping
-            description_text = expense.description
-            if len(description_text) > 35:  # Roughly fits in 2 inches at font size 9
-                description_para = Paragraph(description_text, self.description_style)
-            else:
-                description_para = description_text
+            # Format description with notes in italics
+            description_para = self._format_description_with_notes(expense.description)
 
             data.append([
                 expense.date.strftime('%Y-%m-%d'),
@@ -389,12 +403,8 @@ class PDFService:
 
         data = [['Date', 'Description', 'Net (ex VAT)', 'VAT', 'Gross (Paid)']]
         for expense in expenses:
-            # Wrap long descriptions in Paragraph for proper word wrapping
-            description_text = expense.description
-            if len(description_text) > 35:  # Roughly fits in 2 inches at font size 9
-                description_para = Paragraph(description_text, self.description_style)
-            else:
-                description_para = description_text
+            # Format description with notes in italics
+            description_para = self._format_description_with_notes(expense.description)
 
             data.append([
                 expense.date.strftime('%Y-%m-%d'),

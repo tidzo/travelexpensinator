@@ -74,7 +74,10 @@ class ExpenseService:
         return expense
 
     def get_monthly_report(self, month: int, year: int) -> Dict[str, Any]:
-        expenses = self.db.query(ExpenseItem).join(ExpenseCategory).filter(
+        from sqlalchemy.orm import joinedload
+        expenses = self.db.query(ExpenseItem).join(ExpenseCategory).options(
+            joinedload(ExpenseItem.leg)
+        ).filter(
             and_(
                 extract('month', ExpenseItem.date) == month,
                 extract('year', ExpenseItem.date) == year
@@ -85,6 +88,9 @@ class ExpenseService:
         unlinked_expenses = []
 
         for expense in expenses:
+            # Enhance description with leg notes if applicable
+            expense.description = self.get_expense_description_with_notes(expense)
+
             if expense.trip_id:
                 if expense.trip_id not in grouped_by_trip:
                     grouped_by_trip[expense.trip_id] = {
@@ -158,3 +164,15 @@ class ExpenseService:
                 totals["non_billable_total"] += expense.amount_gbp
 
         return totals
+
+    def get_expense_description_with_notes(self, expense: ExpenseItem) -> str:
+        """Get expense description including leg notes if applicable"""
+        description = expense.description
+
+        # If this expense is linked to a leg and the leg has notes, append them
+        if expense.leg_id and expense.leg and expense.leg.notes:
+            # Check if notes are already in description (for newly created legs)
+            if '\n' not in description:
+                description += f"\n{expense.leg.notes}"
+
+        return description

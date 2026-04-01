@@ -72,6 +72,21 @@ function MonthlyReport() {
     return `Trip: ${startDayShort} ${startDay} - ${endDayShort} ${endDay} ${monthName}`;
   };
 
+  const formatDescriptionWithNotes = (description: string) => {
+    if (description.includes('\n')) {
+      const [mainDesc, ...noteParts] = description.split('\n');
+      const notes = noteParts.join('\n');
+      return (
+        <Box>
+          <Typography component="span">{mainDesc}</Typography>
+          <br />
+          <Typography component="span" fontStyle="italic">{notes}</Typography>
+        </Box>
+      );
+    }
+    return description;
+  };
+
   const handleGeneratePDF = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/reports/monthly/pdf?month=${selectedMonth}&year=${selectedYear}`);
@@ -229,7 +244,7 @@ function MonthlyReport() {
                           {tripGroup.expenses.map((expense) => (
                             <TableRow key={expense.id}>
                               <TableCell>{formatDate(expense.date)}</TableCell>
-                              <TableCell>{expense.description}</TableCell>
+                              <TableCell>{formatDescriptionWithNotes(expense.description)}</TableCell>
                               <TableCell align="right">{formatCurrencyOrBlank(expense.ex_vat_amount)}</TableCell>
                               <TableCell align="right">{formatCurrencyOrBlank(expense.vat_amount)}</TableCell>
                               <TableCell align="right">{formatCurrency(expense.amount_gbp)}</TableCell>
@@ -266,7 +281,7 @@ function MonthlyReport() {
                       {report.unlinked_expenses.map((expense) => (
                         <TableRow key={expense.id}>
                           <TableCell>{formatDate(expense.date)}</TableCell>
-                          <TableCell>{expense.description}</TableCell>
+                          <TableCell>{formatDescriptionWithNotes(expense.description)}</TableCell>
                           <TableCell align="right">{formatCurrencyOrBlank(expense.ex_vat_amount)}</TableCell>
                           <TableCell align="right">{formatCurrencyOrBlank(expense.vat_amount)}</TableCell>
                           <TableCell align="right">{formatCurrency(expense.amount_gbp)}</TableCell>
