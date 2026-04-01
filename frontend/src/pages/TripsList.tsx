@@ -17,16 +17,18 @@ import {
   Button,
   TextField,
 } from '@mui/material';
-import { Add, Edit, Delete, DirectionsTransit } from '@mui/icons-material';
-import { Trip } from '../types';
+import { Add, Edit, Delete, DirectionsTransit, Receipt } from '@mui/icons-material';
+import { Trip, ExpenseCategory } from '../types';
 import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useDateContext } from '../contexts/DateContext';
+import ExpenseDialog from '../components/ExpenseDialog';
 
 function TripsList() {
   const navigate = useNavigate();
   const { selectedMonth, selectedYear } = useDateContext();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
@@ -35,20 +37,25 @@ function TripsList() {
     end_date: '',
     notes: ''
   });
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
 
-  const loadTrips = async () => {
+  const loadData = async () => {
     try {
-      const data = await api.get<Trip[]>(`/trips?month=${selectedMonth}&year=${selectedYear}`);
-      setTrips(data);
+      const [tripsData, categoriesData] = await Promise.all([
+        api.get<Trip[]>(`/trips?month=${selectedMonth}&year=${selectedYear}`),
+        api.get<ExpenseCategory[]>('/expense-categories')
+      ]);
+      setTrips(tripsData);
+      setCategories(categoriesData);
     } catch (error) {
-      console.error('Failed to load trips:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTrips();
+    loadData();
   }, [selectedMonth, selectedYear]);
 
   const deleteTrip = async (tripId: number) => {
@@ -114,7 +121,7 @@ function TripsList() {
       }
       handleCloseDialog();
       // Refresh the list to ensure we have the latest data
-      loadTrips();
+      loadData();
     } catch (error) {
       console.error('Failed to save trip:', error);
     }
@@ -146,15 +153,24 @@ function TripsList() {
         Trips in {getMonthName(selectedMonth)} {selectedYear}
       </Typography>
 
-      <Button
-        variant="outlined"
-        size="small"
-        startIcon={<DirectionsTransit />}
-        onClick={() => setDialogOpen(true)}
-        sx={{ mb: 3 }}
-      >
-        Add Trip
-      </Button>
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<DirectionsTransit />}
+          onClick={() => setDialogOpen(true)}
+        >
+          Add Trip
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Receipt />}
+          onClick={() => setExpenseDialogOpen(true)}
+        >
+          Add other expense
+        </Button>
+      </Box>
 
       {trips.length === 0 ? (
         <Card>
@@ -293,6 +309,16 @@ function TripsList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ExpenseDialog
+        open={expenseDialogOpen}
+        onClose={() => setExpenseDialogOpen(false)}
+        categories={categories}
+        onSave={() => {
+          setExpenseDialogOpen(false);
+          // Expenses are not displayed on this page, so no need to refresh
+        }}
+      />
     </Box>
   );
 }
