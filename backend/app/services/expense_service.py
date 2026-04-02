@@ -182,11 +182,9 @@ class ExpenseService:
             description += f"\n{expense.notes}"
 
         # If this expense is linked to a leg and the leg has notes, append them
+        # (only if not already embedded in the description by build_leg_description)
         if expense.leg_id and expense.leg and expense.leg.notes:
-            # Check if notes are already in description (for newly created legs)
-            if '\n' not in description:
-                description += f"\n{expense.leg.notes}"
-            else:
+            if expense.leg.notes not in description:
                 description += f"\n{expense.leg.notes}"
 
         return description
