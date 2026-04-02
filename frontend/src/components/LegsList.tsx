@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material';
 import { Leg, Location, ExpenseItem, EvidenceItem, ExpenseCategory } from '../types';
 import { api } from '../services/api';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
 interface LegsListProps {
   journeyId: number;
@@ -72,7 +73,6 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
           expenseMap[expense.leg_id] = expense;
         }
       });
-      console.log('Loaded expenses for journey:', journeyId, 'Expense map:', expenseMap);
       setLegExpenses(expenseMap);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -100,13 +100,11 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
 
         // Update the associated expense amount if provided
         const expense = legExpenses[editingLeg.id];
-        console.log('Updating expense for leg:', editingLeg.id, 'Expense:', expense, 'New amount:', newLeg.expense_amount);
 
         if (expense) {
           const updatedExpense = await api.put<ExpenseItem>(`/expenses/${expense.id}`, {
             amount_gbp: newLeg.expense_amount !== '' ? parseFloat(newLeg.expense_amount) : 0
           });
-          console.log('Expense update response:', updatedExpense);
 
           setLegExpenses(prev => ({
             ...prev,
@@ -124,24 +122,25 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
         });
         setLegs([...legs, leg]);
 
-        // Wait a moment for the expense to be created, then reload data
-        setTimeout(() => {
-          loadData();
-        }, 500);
+        // Fetch the auto-created expense and update it if amount was provided
+        const expenses = await api.get<ExpenseItem[]>(`/expenses?journey_id=${journeyId}`);
+        const legExpense = expenses.find(exp => exp.leg_id === leg.id);
 
-        // If user specified an amount, update the expense
-        if (newLeg.expense_amount !== '') {
-          setTimeout(async () => {
-            await loadData();
-            const expenses = await api.get<ExpenseItem[]>(`/expenses?journey_id=${journeyId}`);
-            const legExpense = expenses.find(exp => exp.leg_id === leg.id);
-            if (legExpense) {
-              await api.put<ExpenseItem>(`/expenses/${legExpense.id}`, {
-                amount_gbp: parseFloat(newLeg.expense_amount)
-              });
-              loadData();
-            }
-          }, 1000);
+        if (legExpense && newLeg.expense_amount !== '') {
+          // Update the expense amount
+          const updatedExpense = await api.put<ExpenseItem>(`/expenses/${legExpense.id}`, {
+            amount_gbp: parseFloat(newLeg.expense_amount)
+          });
+          setLegExpenses(prev => ({
+            ...prev,
+            [leg.id]: updatedExpense
+          }));
+        } else if (legExpense) {
+          // Just set the default expense
+          setLegExpenses(prev => ({
+            ...prev,
+            [leg.id]: legExpense
+          }));
         }
       }
       handleCloseLegDialog();
@@ -225,12 +224,6 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
     return location ? location.name : `Location ${locationId}`;
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP'
-    }).format(amount);
-  };
 
   const handleFileUpload = async (legId: number) => {
     // Find the expense for this leg
@@ -335,9 +328,6 @@ function LegsList({ journeyId, locations, categories }: LegsListProps) {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
 
 
   if (loading) {

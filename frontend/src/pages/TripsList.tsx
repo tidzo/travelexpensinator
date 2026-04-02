@@ -23,6 +23,7 @@ import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useDateContext } from '../contexts/DateContext';
 import ExpenseDialog from '../components/ExpenseDialog';
+import { formatTripName, formatDateRange } from '../utils/formatters';
 
 function TripsList() {
   const navigate = useNavigate();
@@ -73,31 +74,6 @@ function TripsList() {
     }
   };
 
-  const formatTripName = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const startDayShort = start.toLocaleDateString('en-GB', { weekday: 'short' });
-    const endDayShort = end.toLocaleDateString('en-GB', { weekday: 'short' });
-    const startDay = start.getDate();
-    const endDay = end.getDate();
-    const monthName = start.toLocaleDateString('en-GB', { month: 'long' });
-
-    return `Trip: ${startDayShort} ${startDay} - ${endDayShort} ${endDay} ${monthName}`;
-  };
-
-  const formatDateRange = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const formatDateWithDay = (date: Date) => {
-      const dayName = date.toLocaleDateString('en-GB', { weekday: 'long' });
-      const isoDate = date.toISOString().split('T')[0];
-      return `${dayName} ${isoDate}`;
-    };
-
-    return `${formatDateWithDay(start)} - ${formatDateWithDay(end)}`;
-  };
 
   const getDuration = (startDate: string, endDate: string) => {
     const start = new Date(startDate);

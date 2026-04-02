@@ -2,8 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# Install uv
+RUN pip install uv
+
+# Copy dependency files
+COPY pyproject.toml .
+COPY uv.lock .
+
+# Install dependencies using uv
+RUN uv pip install --system -r pyproject.toml
 
 COPY . .
 

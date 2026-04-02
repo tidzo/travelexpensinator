@@ -12,6 +12,17 @@ from app.schemas.leg import LegCreate, LegUpdate, LegResponse
 
 router = APIRouter(prefix="/legs", tags=["legs"])
 
+
+def build_leg_description(mode_of_transport: str, origin_name: str, destination_name: str, notes: str = None) -> str:
+    """
+    Build a standardized description for a leg expense.
+    Format: "MODE: Origin → Destination" with optional notes on a new line.
+    """
+    description = f"{mode_of_transport}: {origin_name} → {destination_name}"
+    if notes:
+        description += f"\n{notes}"
+    return description
+
 @router.post("/", response_model=LegResponse)
 def create_leg(leg: LegCreate, db: Session = Depends(get_db)):
     # Create the leg
@@ -38,10 +49,7 @@ def create_leg(leg: LegCreate, db: Session = Depends(get_db)):
     destination_name = destination_location.name if destination_location else f"Location {db_leg.destination_location_id}"
 
     # Create description in the same format as the dropdown: "TRAIN: Origin → Destination"
-    # Include notes on a new line if present
-    description = f"{db_leg.mode_of_transport.value}: {origin_name} → {destination_name}"
-    if db_leg.notes:
-        description += f"\n{db_leg.notes}"
+    description = build_leg_description(db_leg.mode_of_transport.value, origin_name, destination_name, db_leg.notes)
 
     # Create associated expense with default amount of £0.00
     expense = ExpenseItem(
@@ -103,10 +111,7 @@ def update_leg(leg_id: int, leg_update: LegUpdate, db: Session = Depends(get_db)
         destination_name = destination_location.name if destination_location else f"Location {leg.destination_location_id}"
 
         # Update description to match the new leg details
-        new_description = f"{leg.mode_of_transport.value}: {origin_name} → {destination_name}"
-        if leg.notes:
-            new_description += f"\n{leg.notes}"
-        associated_expense.description = new_description
+        associated_expense.description = build_leg_description(leg.mode_of_transport.value, origin_name, destination_name, leg.notes)
 
     db.commit()
     db.refresh(leg)

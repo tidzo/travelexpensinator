@@ -21,7 +21,19 @@
       "Bash(curl -s http://localhost:8000/api/categories)",
       "Bash(curl -s http://localhost:8000/)",
       "Bash(curl -s http://localhost:8000/docs)",
-      "Bash(curl -s http://localhost:8000/api/trips)"
+      "Bash(curl -s http://localhost:8000/api/trips)",
+      "Bash(npm audit:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(npm ls:*)",
+      "Bash(python3:*)",
+      "WebSearch",
+      "Bash(npm install:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(uv run python:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import ValidationError
 from app.core.database import get_db
 from app.models.expense_item import ExpenseItem
 from app.models.expense_category import ExpenseCategory
@@ -83,64 +81,32 @@ def get_expense(expense_id: int, db: Session = Depends(get_db)):
     return expense
 
 @router.put("/{expense_id}", response_model=ExpenseItemResponse)
-async def update_expense(expense_id: int, request: Request, db: Session = Depends(get_db)):
-    try:
-        # Get raw request body and parse manually
-        body = await request.body()
-        import json
-        data = json.loads(body)
-        print(f"DEBUG: Raw data: {data}")
+def update_expense(expense_id: int, expense_update: ExpenseItemUpdate, db: Session = Depends(get_db)):
+    from app.services.vat_calculator import VATCalculator
+    from decimal import Decimal
 
-        # Create update object manually to avoid Pydantic issues
-        from app.services.expense_service import ExpenseService
-        service = ExpenseService(db)
+    # Get the existing expense
+    expense = db.query(ExpenseItem).filter(ExpenseItem.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
 
-        # Get the existing expense first
-        existing_expense = db.query(ExpenseItem).filter(ExpenseItem.id == expense_id).first()
-        if not existing_expense:
-            raise HTTPException(status_code=404, detail="Expense not found")
+    # Update only the fields that were provided
+    update_data = expense_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(expense, field, value)
 
-        # Update fields directly on the existing expense
-        if 'category_id' in data:
-            existing_expense.category_id = data['category_id']
-        if 'date' in data:
-            if isinstance(data['date'], str):
-                from datetime import date
-                existing_expense.date = date.fromisoformat(data['date'])
-            else:
-                existing_expense.date = data['date']
-        if 'description' in data:
-            existing_expense.description = data['description']
-        if 'notes' in data:
-            existing_expense.notes = data['notes']
-        if 'amount_gbp' in data:
-            existing_expense.amount_gbp = data['amount_gbp']
-        if 'is_billable' in data:
-            existing_expense.is_billable = data['is_billable']
-
-        # Recalculate VAT
-        from app.services.vat_calculator import VATCalculator
-        from decimal import Decimal
-        category = db.query(ExpenseCategory).filter(ExpenseCategory.id == existing_expense.category_id).first()
+    # Recalculate VAT if amount or category changed
+    if 'amount_gbp' in update_data or 'category_id' in update_data:
+        category = db.query(ExpenseCategory).filter(ExpenseCategory.id == expense.category_id).first()
         if category:
-            # Ensure amount_gbp is Decimal for VAT calculation
-            amount_gbp = existing_expense.amount_gbp
-            if not isinstance(amount_gbp, Decimal):
-                amount_gbp = Decimal(str(amount_gbp))
-            ex_vat_amount, vat_amount = VATCalculator.calculate_vat_amounts(
-                amount_gbp, category.vat_status
-            )
-            existing_expense.ex_vat_amount = ex_vat_amount
-            existing_expense.vat_amount = vat_amount
+            amount_gbp = expense.amount_gbp if isinstance(expense.amount_gbp, Decimal) else Decimal(str(expense.amount_gbp))
+            ex_vat_amount, vat_amount = VATCalculator.calculate_vat_amounts(amount_gbp, category.vat_status)
+            expense.ex_vat_amount = ex_vat_amount
+            expense.vat_amount = vat_amount
 
-        db.commit()
-        db.refresh(existing_expense)
-        return existing_expense
-
-    except Exception as e:
-        print(f"DEBUG: Exception: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    db.commit()
+    db.refresh(expense)
+    return expense
 
 @router.delete("/{expense_id}")
 def delete_expense(expense_id: int, db: Session = Depends(get_db)):
@@ -170,8 +136,9 @@ def delete_expense(expense_id: int, db: Session = Depends(get_db)):
                 storage = LocalStorage()
                 try:
                     storage.delete_file(evidence.file_path)
-                except Exception as e:
-                    print(f"Warning: Could not delete file {evidence.file_path}: {e}")
+                except Exception:
+                    # Silently continue if file deletion fails
+                    pass
 
                 # Delete the evidence record
                 db.delete(evidence)

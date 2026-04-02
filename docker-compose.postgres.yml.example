@@ -1,0 +1,23 @@
+# Example PostgreSQL configuration for docker-compose
+# Copy this to docker-compose.override.yml if you want to use PostgreSQL
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: travelexpenses
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/travelexpenses
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

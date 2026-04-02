@@ -1,7 +1,11 @@
+import logging
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
+from app.core.config import settings
 from app.models.expense_category import ExpenseCategory, VATStatus
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 def init_db():
     """Initialize database with seed data"""
@@ -21,7 +25,7 @@ def init_db():
             ExpenseCategory(
                 name="Incidentals",
                 vat_status=VATStatus.OUT_OF_SCOPE,
-                default_amount=Decimal("5.00")
+                default_amount=Decimal(str(settings.default_incidental_amount))
             ),
             ExpenseCategory(name="Other", vat_status=VATStatus.ZERO_RATED),
         ]
@@ -30,10 +34,10 @@ def init_db():
             db.add(category)
 
         db.commit()
-        print("Database initialized with seed data")
+        logger.info("Database initialized with seed data")
 
     except Exception as e:
         db.rollback()
-        print(f"Error initializing database: {e}")
+        logger.error(f"Error initializing database: {e}")
     finally:
         db.close()

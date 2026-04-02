@@ -17,6 +17,7 @@ import { PictureAsPdf } from '@mui/icons-material';
 import { MonthlyReport as MonthlyReportType } from '../types';
 import { api } from '../services/api';
 import { useDateContext } from '../contexts/DateContext';
+import { formatCurrency, formatCurrencyOrBlank, formatDate, formatTripName, formatMonthName } from '../utils/formatters';
 
 function MonthlyReport() {
   const { selectedMonth, selectedYear } = useDateContext();
@@ -39,37 +40,8 @@ function MonthlyReport() {
     loadReport();
   }, [selectedMonth, selectedYear]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP'
-    }).format(amount);
-  };
-
-  const formatCurrencyOrBlank = (amount: number) => {
-    return amount > 0 ? formatCurrency(amount) : '';
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const getMonthName = (month: number) => {
-    return new Date(0, month - 1).toLocaleString('en-GB', { month: 'long' });
-  };
-
-  const formatTripName = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const startDayShort = start.toLocaleDateString('en-GB', { weekday: 'short' });
-    const endDayShort = end.toLocaleDateString('en-GB', { weekday: 'short' });
-    const startDay = start.getDate();
-    const endDay = end.getDate();
-    const monthName = start.toLocaleDateString('en-GB', { month: 'long' });
-
-    return `Trip: ${startDayShort} ${startDay} - ${endDayShort} ${endDay} ${monthName}`;
-  };
+  // Use formatMonthName from formatters
+  const getMonthName = formatMonthName;
 
   const formatDescriptionWithNotes = (description: string) => {
     if (description.includes('\n')) {

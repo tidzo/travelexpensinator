@@ -14,6 +14,13 @@ from PIL import Image as PILImage
 import fitz  # PyMuPDF for better PDF handling
 
 class PDFService:
+    # PDF Layout Constants
+    MAX_PDF_PAGES = 5  # Maximum pages to include from a single PDF document
+    PDF_RENDER_ZOOM = 1.5  # Zoom level for PDF rendering quality
+    PDF_SCALE_REDUCTION = 0.9  # Reduction factor for PDF scaling (90%)
+    MAX_IMAGE_WIDTH = 7.5 * inch  # Maximum width for embedded images
+    MAX_IMAGE_HEIGHT = 10 * inch  # Maximum height for embedded images
+
     def __init__(self):
         self.styles = getSampleStyleSheet()
         self.title_style = ParagraphStyle(
@@ -337,8 +344,15 @@ class PDFService:
 
         return story_elements
 
-    def _embed_pdf(self, file_path: Path):
-        """Embed pages from a PDF file as images into the current PDF"""
+    def _embed_pdf(self, file_path: Path, extra_scale: float = 1.0, image_format: str = 'JPEG'):
+        """
+        Embed pages from a PDF file as images into the current PDF.
+
+        Args:
+            file_path: Path to the PDF file
+            extra_scale: Additional scaling factor (default 1.0 = no extra scaling)
+            image_format: Image format to use ('JPEG' or 'PNG')
+        """
         story_elements = []
 
         try:
@@ -347,10 +361,15 @@ class PDFService:
             num_pages = len(doc)
 
             # Limit pages to prevent very large evidence binders
-            max_pages = min(num_pages, 5)  # Limit to 5 pages per document
+            max_pages = min(num_pages, self.MAX_PDF_PAGES)
 
             if num_pages > max_pages:
-                story_elements.append(Paragraph(f"PDF file has {num_pages} pages. Only first {max_pages} pages will be included.", self.styles['Normal']))
+                story_elements.append(
+                    Paragraph(
+                        f"PDF file has {num_pages} pages. Only first {max_pages} pages will be included.",
+                        self.styles['Normal']
+                    )
+                )
                 story_elements.append(Spacer(1, 6))
 
             # Convert each page to an image and embed it
@@ -358,97 +377,38 @@ class PDFService:
                 page = doc[page_num]
 
                 # Render page as image (matrix controls resolution)
-                matrix = fitz.Matrix(1.5, 1.5)  # 1.5x zoom for good quality
+                matrix = fitz.Matrix(self.PDF_RENDER_ZOOM, self.PDF_RENDER_ZOOM)
                 pix = page.get_pixmap(matrix=matrix)
 
                 # Convert to PIL Image
                 img_data = pix.tobytes("ppm")
                 img = PILImage.open(BytesIO(img_data))
 
-                # Calculate scaling to fit on page (with smaller margins)
-                max_width = 7.5 * inch  # Increased due to smaller margins
-                max_height = 10 * inch  # Increased due to smaller margins
-
+                # Calculate scaling to fit on page
                 img_width, img_height = img.size
-                scale = min(max_width / img_width, max_height / img_height, 1.0)
+                scale = min(
+                    self.MAX_IMAGE_WIDTH / img_width,
+                    self.MAX_IMAGE_HEIGHT / img_height,
+                    1.0
+                )
 
-                # Reduce scaling by 10%
-                scale = scale * 0.9
-
-                final_width = img_width * scale
-                final_height = img_height * scale
-
-                # Convert PIL Image to BytesIO for reportlab
-                img_buffer = BytesIO()
-                img.save(img_buffer, format='JPEG', quality=85)
-                img_buffer.seek(0)
-
-                # Create reportlab Image
-                rl_image = Image(img_buffer, width=final_width, height=final_height)
-
-                if page_num > 0:
-                    story_elements.append(Spacer(1, 8))  # Small spacing between pages
-                story_elements.append(rl_image)
-
-            doc.close()
-
-        except Exception as e:
-            story_elements.append(Paragraph(f"Error processing PDF: {str(e)}", self.styles['Normal']))
-
-        return story_elements
-
-    def _embed_pdf_scaled(self, file_path: Path, extra_scale: float = 1.0):
-        """Embed pages from a PDF file as images with additional scaling"""
-        story_elements = []
-
-        try:
-            # Open the PDF document
-            doc = fitz.open(str(file_path))
-            num_pages = len(doc)
-
-            # Limit pages to prevent very large evidence binders
-            max_pages = min(num_pages, 5)  # Limit to 5 pages per document
-
-            if num_pages > max_pages:
-                story_elements.append(Paragraph(f"PDF file has {num_pages} pages. Only first {max_pages} pages will be included.", self.styles['Normal']))
-                story_elements.append(Spacer(1, 6))
-
-            # Convert each page to an image and embed it
-            for page_num in range(max_pages):
-                page = doc[page_num]
-
-                # Render page as image (matrix controls resolution)
-                matrix = fitz.Matrix(1.5, 1.5)  # 1.5x zoom for good quality
-                pix = page.get_pixmap(matrix=matrix)
-
-                # Convert to PIL Image
-                img_data = pix.tobytes("ppm")
-                img = PILImage.open(BytesIO(img_data))
-
-                # Calculate scaling to fit on page (with smaller margins)
-                max_width = 7.5 * inch  # Increased due to smaller margins
-                max_height = 10 * inch  # Increased due to smaller margins
-
-                img_width, img_height = img.size
-                scale = min(max_width / img_width, max_height / img_height, 1.0)
-
-                # Reduce scaling by 10% (original reduction)
-                scale = scale * 0.9
-
-                # Apply additional scaling
-                scale = scale * extra_scale
+                # Apply standard reduction and extra scaling
+                scale = scale * self.PDF_SCALE_REDUCTION * extra_scale
 
                 final_width = img_width * scale
                 final_height = img_height * scale
 
                 # Save to temporary buffer for ReportLab
-                temp_buffer = BytesIO()
-                img.save(temp_buffer, format='PNG')
-                temp_buffer.seek(0)
+                img_buffer = BytesIO()
+                if image_format == 'JPEG':
+                    img.save(img_buffer, format='JPEG', quality=85)
+                else:
+                    img.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
 
                 # Create reportlab Image
-                image = Image(temp_buffer, width=final_width, height=final_height)
-                story_elements.append(image)
+                rl_image = Image(img_buffer, width=final_width, height=final_height)
+                story_elements.append(rl_image)
 
                 # Add spacing between pages (except after last page)
                 if page_num < max_pages - 1:
@@ -460,6 +420,11 @@ class PDFService:
             story_elements.append(Paragraph(f"Error processing PDF: {str(e)}", self.styles['Normal']))
 
         return story_elements
+
+    # Keep _embed_pdf_scaled as a compatibility wrapper
+    def _embed_pdf_scaled(self, file_path: Path, extra_scale: float = 1.0):
+        """Legacy method - use _embed_pdf with extra_scale parameter instead"""
+        return self._embed_pdf(file_path, extra_scale=extra_scale, image_format='PNG')
 
     def _create_summary_table(self, totals: Dict[str, Decimal]) -> Table:
         # Calculate net amounts (ex VAT)
@@ -757,13 +722,58 @@ class PDFService:
 
         return story
 
+    def _add_evidence_header(self, story: List, month: int, year: int) -> None:
+        """Add the evidence binder title and header"""
+        story.append(Paragraph(f"Evidence Binder - {self._get_month_name(month)} {year}", self.title_style))
+        story.append(Spacer(1, 6))
+
+    def _create_expense_table_for_evidence(self, linked_expenses: List[ExpenseItem]) -> Table:
+        """Create a table showing expenses linked to an evidence item"""
+        expense_data = [['Date', 'Description', 'Amount']]
+        for expense in linked_expenses:
+            description_formatted = self._format_description_with_notes(expense.description)
+            expense_data.append([
+                expense.date.strftime('%d/%m/%Y'),
+                description_formatted,
+                f"£{expense.amount_gbp:.2f}"
+            ])
+
+        expense_table = Table(expense_data, colWidths=[1*inch, 5.5*inch, 1*inch])
+        expense_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
+        ]))
+
+        return expense_table
+
+    def _add_evidence_file(self, story: List, evidence) -> None:
+        """Add the evidence file (image or PDF) to the story"""
+        try:
+            # Handle both cases: file_path with or without 'uploads/' prefix
+            if evidence.file_path.startswith('uploads/'):
+                file_path = Path(evidence.file_path)
+            else:
+                file_path = Path("uploads") / evidence.file_path
+
+            if file_path.exists():
+                story.extend(self._embed_evidence_file_scaled(file_path, evidence.file_type, extra_scale=0.9))
+            else:
+                story.append(Paragraph(f"File not found: {evidence.file_path} (looked at: {file_path})", self.styles['Normal']))
+        except Exception as e:
+            story.append(Paragraph(f"Error loading file: {str(e)}", self.styles['Normal']))
+
     def _build_evidence_binder_content(self, expenses: List[ExpenseItem], month: int, year: int) -> List:
         """Build the evidence binder content as story elements"""
         story = []
 
-        # Title
-        story.append(Paragraph(f"Evidence Binder - {self._get_month_name(month)} {year}", self.title_style))
-        story.append(Spacer(1, 6))
+        # Add header
+        self._add_evidence_header(story, month, year)
 
         if not expenses:
             story.append(Paragraph("No evidence items found for this period.", self.styles['Normal']))
@@ -803,49 +813,17 @@ class PDFService:
                             seen_expense_ids.add(exp.id)
                             break
 
-                # Create expense table
-                expense_data = [['Date', 'Description', 'Amount']]
-                for linked_expense in linked_expenses:
-                    description_formatted = self._format_description_with_notes(linked_expense.description)
-                    expense_data.append([
-                        linked_expense.date.strftime('%d/%m/%Y'),
-                        description_formatted,
-                        f"£{linked_expense.amount_gbp:.2f}"
-                    ])
-
-                expense_table = Table(expense_data, colWidths=[1*inch, 5.5*inch, 1*inch])
-                expense_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
-                    ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 3),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
-                ]))
-
-                num_data_rows = len(expense_data) - 1
+                # Create and add expense table
+                expense_table = self._create_expense_table_for_evidence(linked_expenses)
+                num_data_rows = len(linked_expenses)
                 if num_data_rows <= 2:
                     story.append(KeepTogether([expense_table]))
                 else:
                     story.append(expense_table)
                 story.append(Spacer(1, 12))
 
-                # Include the actual evidence file
-                try:
-                    # Handle both cases: file_path with or without 'uploads/' prefix
-                    if evidence.file_path.startswith('uploads/'):
-                        file_path = Path(evidence.file_path)
-                    else:
-                        file_path = Path("uploads") / evidence.file_path
-
-                    if file_path.exists():
-                        story.extend(self._embed_evidence_file_scaled(file_path, evidence.file_type, extra_scale=0.9))
-                    else:
-                        story.append(Paragraph(f"File not found: {evidence.file_path} (looked at: {file_path})", self.styles['Normal']))
-                except Exception as e:
-                    story.append(Paragraph(f"Error loading file: {str(e)}", self.styles['Normal']))
+                # Add the evidence file
+                self._add_evidence_file(story, evidence)
 
         return story
 

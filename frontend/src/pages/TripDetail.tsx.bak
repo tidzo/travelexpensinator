@@ -1,20 +1,45 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { formatTripName, formatDateWithDay } from '../utils/formatters';
+import { formatCurrency, formatDate, formatTripName, formatDateWithDay } from '../utils/formatters';
 import {
   Card,
   CardContent,
   Typography,
   Box,
+  Fab,
+  List,
+  ListItem,
+  ListItemText,
   IconButton,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Button,
+  TextField,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import {
+  Add,
+  Edit,
+  Delete,
+  ExpandMore,
   ArrowBack,
+  DirectionsTransit,
+  Today,
   Receipt,
+  Restaurant,
+  Hotel,
+  AttachFile,
+  Link,
+  AttachmentOutlined,
 } from '@mui/icons-material';
 import { Trip, Journey, Location, ExpenseCategory, ExpenseItem, EvidenceItem } from '../types';
 import { api } from '../services/api';
+import LegsList from '../components/LegsList';
 import ExpenseDialog from '../components/ExpenseDialog';
 import TripJourneys from '../components/TripJourneys';
 import TripExpenses from '../components/TripExpenses';
@@ -70,11 +95,62 @@ function TripDetail() {
     }
   }, [tripId]);
 
+  const handleCreateJourney = async () => {
+    try {
+      if (editingJourney) {
+        const updatedJourney = await api.put<Journey>(`/journeys/${editingJourney.id}`, newJourney);
+        setJourneys(journeys.map(journey =>
+          journey.id === editingJourney.id ? updatedJourney : journey
+        ));
+      } else {
+        const journey = await api.post<Journey>('/journeys', newJourney);
+        setJourneys([...journeys, journey]);
+      }
+      handleCloseJourneyDialog();
+    } catch (error) {
+      console.error('Failed to save journey:', error);
+    }
+  };
+
+  const handleEditJourney = (journey: Journey) => {
+    setEditingJourney(journey);
+    setNewJourney({
+      trip_id: journey.trip_id,
+      date: journey.date,
+      description: journey.description || ''
+    });
+    setJourneyDialogOpen(true);
+  };
+
+  const handleCloseJourneyDialog = () => {
+    setJourneyDialogOpen(false);
+    setEditingJourney(null);
+    setNewJourney({ trip_id: parseInt(tripId || '0'), date: '', description: '' });
+  };
+
+  const deleteJourney = async (journeyId: number) => {
+    if (window.confirm('Are you sure you want to delete this journey?')) {
+      try {
+        await api.delete(`/journeys/${journeyId}`);
+        setJourneys(journeys.filter(journey => journey.id !== journeyId));
+      } catch (error) {
+        console.error('Failed to delete journey:', error);
+      }
+    }
+  };
 
 
-
-
-
+  const getCategoryIcon = (categoryName: string) => {
+    const name = categoryName.toLowerCase();
+    if (name.includes('subsistence')) {
+      return <Restaurant fontSize="small" sx={{ mr: 1, color: 'action.active' }} />;
+    } else if (name.includes('accommodation') || name.includes('incidental')) {
+      return <Hotel fontSize="small" sx={{ mr: 1, color: 'action.active' }} />;
+    } else if (name.includes('travel')) {
+      return <DirectionsTransit fontSize="small" sx={{ mr: 1, color: 'action.active' }} />;
+    }
+    return null;
+  };
 
   const handleCreateExpenseFromTrip = () => {
     if (!trip) return;
@@ -137,12 +213,42 @@ function TripDetail() {
     }
   };
 
+  const handleLinkEvidenceToExpense = async (evidenceId: number) => {
+    if (!linkingExpenseId) return;
+
+    try {
+      await api.post('/expense-evidence-links', {
+        expense_item_id: linkingExpenseId,
+        evidence_item_id: evidenceId
+      });
+
+      // Refresh the data to update evidence counts
+      loadData();
+      setLinkEvidenceDialogOpen(false);
+      setLinkingExpenseId(null);
+      setAvailableEvidence([]);
+    } catch (error) {
+      console.error('Failed to link evidence:', error);
+      alert('Failed to link evidence to expense.');
+    }
+  };
 
   const handleEditExpense = (expense: ExpenseItem) => {
     setEditingExpense(expense);
     setExpenseDialogOpen(true);
   };
 
+  const deleteExpense = async (expenseId: number) => {
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      try {
+        await api.delete(`/expenses/${expenseId}`);
+        loadData(); // Refresh data
+      } catch (error) {
+        console.error('Failed to delete expense:', error);
+        alert('Failed to delete expense');
+      }
+    }
+  };
 
   const handleViewEvidence = async (expenseId: number) => {
     try {
@@ -192,6 +298,14 @@ function TripDetail() {
             <Button
               variant="outlined"
               size="small"
+              startIcon={<DirectionsTransit />}
+              onClick={() => setJourneyDialogOpen(true)}
+            >
+              Add Journey
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
               startIcon={<Receipt />}
               onClick={handleCreateExpenseFromTrip}
             >
@@ -225,6 +339,57 @@ function TripDetail() {
         onLinkEvidence={handleLinkExistingEvidence}
         onViewEvidence={handleViewEvidence}
       />
+
+      <Fab
+        color="primary"
+        aria-label="add journey"
+        onClick={() => setJourneyDialogOpen(true)}
+        sx={{
+          position: 'fixed',
+          bottom: 80,
+          right: 16,
+        }}
+      >
+        <Add />
+      </Fab>
+
+      <Dialog open={journeyDialogOpen} onClose={handleCloseJourneyDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingJourney ? 'Edit Journey' : 'Add New Journey'}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            value={newJourney.date}
+            onChange={(e) => setNewJourney({ ...newJourney, date: e.target.value })}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            fullWidth
+            multiline
+            rows={3}
+            variant="outlined"
+            value={newJourney.description}
+            onChange={(e) => setNewJourney({ ...newJourney, description: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseJourneyDialog}>Cancel</Button>
+          <Button
+            onClick={handleCreateJourney}
+            variant="contained"
+            disabled={!newJourney.date}
+          >
+            {editingJourney ? 'Update Journey' : 'Create Journey'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <ExpenseDialog
         open={expenseDialogOpen}
