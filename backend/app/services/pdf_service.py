@@ -594,8 +594,13 @@ class PDFService:
         end_day_short = end.strftime('%a')
         start_day = start.day
         end_day = end.day
-        month_name = start.strftime('%B')  # Full month name
 
+        if start.month != end.month or start.year != end.year:
+            start_month_short = start.strftime('%b')
+            end_month_short = end.strftime('%b')
+            return f"Trip: {start_day_short} {start_day} {start_month_short} - {end_day_short} {end_day} {end_month_short}"
+
+        month_name = start.strftime('%B')  # Full month name
         return f"Trip: {start_day_short} {start_day} - {end_day_short} {end_day} {month_name}"
 
     def generate_combined_report(self, report_data: Dict[str, Any]) -> BytesIO:

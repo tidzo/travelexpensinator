@@ -48,8 +48,14 @@ export const formatTripName = (startDate: string, endDate: string): string => {
   const endDayShort = end.toLocaleDateString('en-GB', { weekday: 'short' });
   const startDay = start.getDate();
   const endDay = end.getDate();
-  const monthName = start.toLocaleDateString('en-GB', { month: 'long' });
 
+  if (start.getMonth() !== end.getMonth() || start.getFullYear() !== end.getFullYear()) {
+    const startMonthShort = start.toLocaleDateString('en-GB', { month: 'short' });
+    const endMonthShort = end.toLocaleDateString('en-GB', { month: 'short' });
+    return `Trip: ${startDayShort} ${startDay} ${startMonthShort} - ${endDayShort} ${endDay} ${endMonthShort}`;
+  }
+
+  const monthName = start.toLocaleDateString('en-GB', { month: 'long' });
   return `Trip: ${startDayShort} ${startDay} - ${endDayShort} ${endDay} ${monthName}`;
 };
 
