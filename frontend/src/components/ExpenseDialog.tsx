@@ -195,17 +195,7 @@ function ExpenseDialog({
           sx={{ mb: 2 }}
         />
 
-        <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
-          <InputLabel>Billable</InputLabel>
-          <Select
-            value={expense.is_billable.toString()}
-            onChange={(e) => setExpense({ ...expense, is_billable: e.target.value === 'true' })}
-            label="Billable"
-          >
-            <MenuItem value="true">Yes</MenuItem>
-            <MenuItem value="false">No</MenuItem>
-          </Select>
-        </FormControl>
+
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>Cancel</Button>

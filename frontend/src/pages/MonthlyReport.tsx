@@ -144,12 +144,7 @@ function MonthlyReport() {
                 </Table>
               </TableContainer>
 
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Billable: {formatCurrency(report.totals.billable_total)} |
-                  Non-billable: {formatCurrency(report.totals.non_billable_total)}
-                </Typography>
-              </Box>
+
             </CardContent>
           </Card>
 
