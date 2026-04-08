@@ -1,0 +1,56 @@
+app_version: "1.0.0"
+capabilities: []
+description: Travel Expense Manager - Personal expense tracking and reporting
+home: ""
+icon: ""
+keywords:
+  - expense
+  - travel
+  - accounting
+maintainers: []
+name: travelexpensinator
+sources:
+  - ""
+version: "1.0.0"
+
+# TrueNAS specific configuration
+ix_volumes:
+  - name: "data"
+    description: "Database storage"
+    mount_path: "/data"
+    type: "host_path"
+  - name: "uploads"
+    description: "File uploads storage"
+    mount_path: "/uploads"
+    type: "host_path"
+
+workload:
+  main:
+    type: "Deployment"
+    podSpec:
+      containers:
+        frontend:
+          image:
+            repository: "travelexpensinator-frontend"
+            tag: "latest"
+          ports:
+            containerPort: 5173
+            protocol: "HTTP"
+          environment:
+            NODE_ENV: "production"
+        backend:
+          image:
+            repository: "travelexpensinator-backend"
+            tag: "latest"
+          ports:
+            containerPort: 8000
+            protocol: "HTTP"
+          environment:
+            NODE_ENV: "production"
+            DATABASE_URL: "sqlite:///./data/app.db"
+            CORS_ORIGINS: "*"
+          volumeMounts:
+            - name: "data"
+              mountPath: "/app/data"
+            - name: "uploads"
+              mountPath: "/app/uploads"

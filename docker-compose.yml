@@ -6,11 +6,15 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - ./uploads:/app/uploads
-      - ./data:/app/data
+      - backend_code:/app
+      - uploads_data:/app/uploads
+      - database_data:/app/data
     environment:
       - DATABASE_URL=sqlite:///./data/app.db
+      - NODE_ENV=production
+    restart: unless-stopped
+    depends_on:
+      - frontend
 
   frontend:
     build:
@@ -19,7 +23,34 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
+      - frontend_code:/app
       - /app/node_modules
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  backend_code:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/backend
+  frontend_code:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/frontend
+  uploads_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/uploads
+  database_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data
