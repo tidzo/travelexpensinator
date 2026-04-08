@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from app.models.trip import Trip
 from app.models.journey import Journey
+from app.models.leg import Leg
 from app.models.expense_item import ExpenseItem
 from app.models.expense_category import ExpenseCategory, VATStatus
 from app.schemas.trip import TripCreate, TripUpdate
@@ -68,6 +69,18 @@ class TripService:
 
     def _delete_default_journeys(self, trip: Trip):
         """Delete default journeys (Outbound/Inbound) when trip dates change"""
+        # Get journey IDs first
+        journey_ids = [j.id for j in self.db.query(Journey).filter(
+            Journey.trip_id == trip.id,
+            Journey.description.in_(["Outbound", "Inbound"])
+        ).all()]
+
+        # Delete dependent expense items and legs first
+        if journey_ids:
+            self.db.query(ExpenseItem).filter(ExpenseItem.journey_id.in_(journey_ids)).delete()
+            self.db.query(Leg).filter(Leg.journey_id.in_(journey_ids)).delete()
+
+        # Now delete the journeys
         self.db.query(Journey).filter(
             Journey.trip_id == trip.id,
             Journey.description.in_(["Outbound", "Inbound"])
