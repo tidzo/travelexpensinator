@@ -89,7 +89,7 @@ function MonthlyReport() {
   }
 
   return (
-    <Box sx={{ pb: 8 }}>
+    <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ flexGrow: 1 }}>
           Monthly Report

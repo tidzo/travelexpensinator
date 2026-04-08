@@ -66,7 +66,12 @@ function AppContent() {
   const showDateSelectors = ['/', '/expenses', '/reports'].includes(location.pathname);
 
   return (
-    <>
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      overflow: 'hidden'
+    }}>
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
@@ -76,18 +81,24 @@ function AppContent() {
         </Toolbar>
       </AppBar>
 
-      <Navigation />
+      <Box sx={{
+        flex: 1,
+        overflow: 'auto',
+        pb: 8 // Space for bottom navigation
+      }}>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          <Routes>
+            <Route path="/" element={<TripsList />} />
+            <Route path="/expenses" element={<TripsList />} />
+            <Route path="/expenses/trips/:tripId" element={<TripDetail />} />
+            <Route path="/locations" element={<LocationsList />} />
+            <Route path="/reports" element={<MonthlyReport />} />
+          </Routes>
+        </Container>
+      </Box>
 
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Routes>
-          <Route path="/" element={<TripsList />} />
-          <Route path="/expenses" element={<TripsList />} />
-          <Route path="/expenses/trips/:tripId" element={<TripDetail />} />
-          <Route path="/locations" element={<LocationsList />} />
-          <Route path="/reports" element={<MonthlyReport />} />
-        </Routes>
-      </Container>
-    </>
+      <Navigation />
+    </Box>
   );
 }
 

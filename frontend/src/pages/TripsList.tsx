@@ -195,7 +195,7 @@ function TripsList() {
   }
 
   return (
-    <Box sx={{ pb: 8 }}>
+    <Box>
       <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
         Expenses in {getMonthName(selectedMonth)} {selectedYear}
       </Typography>
