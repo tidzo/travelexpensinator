@@ -45,22 +45,5 @@ class LocalStorage(StorageInterface):
 
         date_str = upload_date.strftime("%Y_%m_%d")
 
-        inferred_type = self._infer_expense_type(safe_name)
+        return f"{date_str}_{safe_name}{ext}"
 
-        return f"{inferred_type}_{date_str}_{safe_name}{ext}"
-
-    def _infer_expense_type(self, filename: str) -> str:
-        filename_lower = filename.lower()
-
-        if any(word in filename_lower for word in ['train', 'rail', 'journey']):
-            return 'train'
-        elif any(word in filename_lower for word in ['hotel', 'accommodation', 'stay']):
-            return 'hotel'
-        elif any(word in filename_lower for word in ['meal', 'restaurant', 'food', 'dinner', 'lunch']):
-            return 'meal'
-        elif any(word in filename_lower for word in ['taxi', 'uber', 'cab']):
-            return 'taxi'
-        elif any(word in filename_lower for word in ['flight', 'airline']):
-            return 'flight'
-        else:
-            return 'expense'
