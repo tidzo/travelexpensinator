@@ -1,0 +1,27 @@
+services:
+  backend:
+    image: tidzo/travelexpensinator-backend:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - /mnt/tank/apps/travelexpensinator/data:/app/data
+      - /mnt/tank/apps/travelexpensinator/uploads:/app/uploads
+    environment:
+      - DATABASE_URL=sqlite:///./data/app.db
+      - NODE_ENV=production
+      - CORS_ORIGINS=*
+    restart: unless-stopped
+    depends_on:
+      - frontend
+
+  frontend:
+    image: tidzo/travelexpensinator-frontend:latest
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+networks:
+  default:
+    name: travelexpensinator_network
