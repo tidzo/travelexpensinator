@@ -1,11 +1,11 @@
 from pydantic import BaseModel, model_validator
-from datetime import date, datetime
+from datetime import date as _date, datetime
 from decimal import Decimal
 from typing import Optional, Any
 
 class ExpenseItemBase(BaseModel):
     category_id: int
-    date: date
+    date: _date
     description: str
     notes: Optional[str] = None
     amount_gbp: Decimal
@@ -22,7 +22,7 @@ class ExpenseItemUpdate(BaseModel):
     journey_id: Optional[int] = None
     leg_id: Optional[int] = None
     category_id: Optional[int] = None
-    date: Optional[date] = None
+    date: Optional[_date] = None
     description: Optional[str] = None
     notes: Optional[str] = None
     amount_gbp: Optional[Decimal] = None
@@ -34,7 +34,7 @@ class ExpenseItemUpdate(BaseModel):
     def coerce_date_string(cls, data: Any) -> Any:
         if isinstance(data, dict) and isinstance(data.get('date'), str):
             data = dict(data)
-            data['date'] = date.fromisoformat(data['date'])
+            data['date'] = _date.fromisoformat(data['date'])
         return data
 
 class ExpenseItemResponse(ExpenseItemBase):
