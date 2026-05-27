@@ -1,7 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.init_db import init_db
@@ -23,6 +28,12 @@ Base.metadata.create_all(bind=engine)
 init_db()
 
 app = FastAPI(title=settings.app_name)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    logger.error("422 on %s %s | body: %s | errors: %s", request.method, request.url.path, body.decode(), exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 app.add_middleware(
     CORSMiddleware,

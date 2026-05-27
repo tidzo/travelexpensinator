@@ -10,7 +10,7 @@ COPY pyproject.toml .
 COPY uv.lock .
 
 # Install dependencies using uv
-RUN uv pip install --system -r pyproject.toml
+RUN uv pip install --system --link-mode=copy -r pyproject.toml
 
 COPY . .
 
