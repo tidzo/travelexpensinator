@@ -63,7 +63,8 @@ function MonthlyReport() {
     try {
       const filename = `expenses_${selectedYear}_${String(selectedMonth).padStart(2, '0')}.pdf`;
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/reports/combined/pdf?month=${selectedMonth}&year=${selectedYear}`);
+      const apiBase = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+      const response = await fetch(`${apiBase}/api/reports/combined/pdf?month=${selectedMonth}&year=${selectedYear}`);
 
       if (!response.ok) {
         throw new Error('Failed to generate combined report');
