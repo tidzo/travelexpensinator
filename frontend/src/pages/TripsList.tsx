@@ -18,7 +18,7 @@ import {
   TextField,
 } from '@mui/material';
 import { Add, Edit, Delete, DirectionsTransit, Receipt, AttachFile } from '@mui/icons-material';
-import { Trip, ExpenseCategory, ExpenseItem } from '../types';
+import { Trip, ExpenseCategory, ExpenseItem, EvidenceItem } from '../types';
 import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useDateContext } from '../contexts/DateContext';
@@ -41,6 +41,8 @@ function TripsList() {
   });
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
+  const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
+  const [selectedEvidence, setSelectedEvidence] = useState<EvidenceItem[]>([]);
 
   const loadData = async () => {
     try {
@@ -157,6 +159,16 @@ function TripsList() {
   const handleEditExpense = (expense: ExpenseItem) => {
     setEditingExpense(expense);
     setExpenseDialogOpen(true);
+  };
+
+  const handleViewEvidence = async (expenseId: number) => {
+    try {
+      const evidence = await api.get<EvidenceItem[]>(`/expenses/${expenseId}/evidence`);
+      setSelectedEvidence(evidence);
+      setEvidenceDialogOpen(true);
+    } catch (error) {
+      console.error('Failed to load evidence:', error);
+    }
   };
 
   const deleteExpense = async (expenseId: number) => {
@@ -378,6 +390,8 @@ function TripsList() {
                               size="small"
                               color="info"
                               variant="outlined"
+                              onClick={() => handleViewEvidence(expense.id)}
+                              sx={{ cursor: 'pointer' }}
                             />
                           )}
                         </Box>
@@ -462,9 +476,40 @@ function TripsList() {
         categories={categories}
         editingExpense={editingExpense}
         onExpenseCreated={() => {
-          loadData(); // Refresh to show new/updated expense
+          loadData();
         }}
       />
+
+      <Dialog open={evidenceDialogOpen} onClose={() => setEvidenceDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Evidence Items</DialogTitle>
+        <DialogContent>
+          {selectedEvidence.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">No evidence items linked to this expense.</Typography>
+          ) : (
+            <List>
+              {selectedEvidence.map((evidence) => {
+                const apiBase = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+                const fileUrl = `${apiBase}/uploads/${evidence.file_path}`;
+                const isImage = evidence.file_type.startsWith('image/');
+                return (
+                  <ListItem key={evidence.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, mb: 1, flexDirection: 'column', alignItems: 'flex-start' }}>
+                    {isImage && (
+                      <Box component="img" src={fileUrl} alt={evidence.original_filename} sx={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain', mb: 1, borderRadius: 1 }} />
+                    )}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <ListItemText primary={evidence.original_filename} secondary={`Uploaded: ${new Date(evidence.upload_date).toLocaleDateString()}`} />
+                      <Button size="small" variant="outlined" href={fileUrl} target="_blank" rel="noopener noreferrer" sx={{ ml: 2, flexShrink: 0 }}>Open</Button>
+                    </Box>
+                  </ListItem>
+                );
+              })}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEvidenceDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -104,27 +104,42 @@ function TripEvidence({
             </Typography>
           ) : (
             <List>
-              {selectedExpenseEvidence.map((evidence) => (
-                <ListItem
-                  key={evidence.id}
-                  sx={{ border: 1, borderColor: 'divider', borderRadius: 1, mb: 1 }}
-                >
-                  <ListItemText
-                    primary={evidence.original_filename}
-                    secondary={
-                      <Box>
-                        <Typography variant="body2" component="span">
-                          Type: {evidence.file_type}
-                        </Typography>
-                        <br />
-                        <Typography variant="body2" component="span">
-                          Uploaded: {new Date(evidence.upload_date).toLocaleDateString()}
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                </ListItem>
-              ))}
+              {selectedExpenseEvidence.map((evidence) => {
+                const apiBase = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+                const fileUrl = `${apiBase}/uploads/${evidence.file_path}`;
+                const isImage = evidence.file_type.startsWith('image/');
+                return (
+                  <ListItem
+                    key={evidence.id}
+                    sx={{ border: 1, borderColor: 'divider', borderRadius: 1, mb: 1, flexDirection: 'column', alignItems: 'flex-start' }}
+                  >
+                    {isImage && (
+                      <Box
+                        component="img"
+                        src={fileUrl}
+                        alt={evidence.original_filename}
+                        sx={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain', mb: 1, borderRadius: 1 }}
+                      />
+                    )}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <ListItemText
+                        primary={evidence.original_filename}
+                        secondary={`Uploaded: ${new Date(evidence.upload_date).toLocaleDateString()}`}
+                      />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        href={fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ ml: 2, flexShrink: 0 }}
+                      >
+                        Open
+                      </Button>
+                    </Box>
+                  </ListItem>
+                );
+              })}
             </List>
           )}
         </DialogContent>
